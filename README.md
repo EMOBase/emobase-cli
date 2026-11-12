@@ -23,7 +23,30 @@ Go 1.25 or newer is needed **only to build**. The binary is statically linked
 (`CGO_ENABLED=0`), so servers need no Go toolchain: just Docker, `git` and
 `python3` for the repository scripts.
 
-### Local machine
+### From a release (recommended, no Go needed)
+
+Every `v*` tag publishes Linux and macOS binaries for `amd64` and `arm64` on the
+[releases page](https://github.com/EMOBase/emobase-cli/releases). Install a
+published version directly on the server:
+
+```sh
+VER=0.1.0
+ARCH=amd64        # uname -m: x86_64 -> amd64, aarch64/arm64 -> arm64
+BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+
+curl -fsSLO "$BASE/emobase_${VER}_linux_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/checksums.txt"
+grep "linux_${ARCH}" checksums.txt | sha256sum -c -
+tar -xzf "emobase_${VER}_linux_${ARCH}.tar.gz" emobase
+sudo install -m 0755 emobase /usr/local/bin/emobase
+emobase --version
+```
+
+Use `install -D -m 0755 emobase ~/.local/bin/emobase` instead for a no-sudo
+install. On macOS, replace `linux` with `darwin` and use
+`shasum -a 256 -c -` instead of `sha256sum`.
+
+### Build from source (local machine)
 
 ```sh
 git clone https://github.com/EMOBase/emobase-cli.git
@@ -46,7 +69,7 @@ PREFIX=/opt/homebrew make install        # Homebrew prefix on Apple Silicon
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Server
+### Build and copy to a server (offline or unreleased)
 
 Cross-compile from your machine (no Go required on the server):
 
@@ -236,4 +259,20 @@ internal/cli         cobra commands and rendering
 internal/ui          colour and tables
 ```
 
-Releases are built with GoReleaser; see `.goreleaser.yaml`.
+## Releasing
+
+Releases are built by GitHub Actions with GoReleaser (`.goreleaser.yaml`).
+Pushing a `v*` tag builds, tests, and publishes the binaries and `checksums.txt`:
+
+```sh
+git tag v0.1.1
+git push origin v0.1.1
+gh run watch --workflow=release.yml
+```
+
+To test the release configuration locally without publishing:
+
+```sh
+brew install goreleaser
+goreleaser release --snapshot --clean   # writes dist/
+```
