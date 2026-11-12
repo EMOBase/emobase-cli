@@ -1,0 +1,7 @@
+/dist/
+/emobase
+*.test
+*.out
+.env.bak
+.env.bak.*
+.DS_Store
