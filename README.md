@@ -27,7 +27,7 @@ The deployment host needs Docker with Compose, `git`, and `python3`.
 
 ### From a release
 
-Download and install a published version on the server:
+#### Linux server
 
 ```sh
 VER=0.1.0
@@ -42,9 +42,23 @@ sudo install -m 0755 emobase /usr/local/bin/emobase
 emobase --version
 ```
 
-Use `install -D -m 0755 emobase ~/.local/bin/emobase` instead for a no-sudo
-install. On macOS, replace `linux` with `darwin` and use
-`shasum -a 256 -c -` instead of `sha256sum`.
+#### macOS
+
+```sh
+VER=0.1.0
+ARCH=arm64        # arm64 on Apple Silicon, amd64 on Intel
+BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+
+curl -fsSLO "$BASE/emobase_${VER}_darwin_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/checksums.txt"
+grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
+tar -xzf "emobase_${VER}_darwin_${ARCH}.tar.gz" emobase
+./emobase --version
+sudo install -m 0755 emobase /usr/local/bin/emobase
+```
+
+To install without sudo, use `install -D -m 0755 emobase ~/.local/bin/emobase`
+in either section.
 
 ### Build from source (local machine)
 
