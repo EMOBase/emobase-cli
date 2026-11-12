@@ -84,7 +84,7 @@ func printFindings(out io.Writer, rep *checks.Report) {
 		}
 		fmt.Fprintf(out, "  %s %-18s %s%s\n", ui.Severity(f.Severity), f.Scope, f.Message, fix)
 		if f.Hint != "" && f.Severity >= checks.Warn {
-			fmt.Fprintf(out, "       %s\n", ui.Muted(f.Hint))
+			fmt.Fprintf(out, "       %s\n", ui.Hint(f.Hint))
 		}
 	}
 }

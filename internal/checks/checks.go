@@ -213,7 +213,7 @@ func Run(w *workspace.Workspace) *Report {
 			Severity: Error,
 			Fix:      FixNone,
 			Message:  "no emobase-infra checkout found",
-			Hint:     "clone emobase-infra next to this workspace: git clone https://github.com/EMOBase/emobase-infra.git",
+			Hint:     "clone emobase-infra next to this workspace: `git clone https://github.com/EMOBase/emobase-infra.git`",
 		})
 	}
 	if w.Portal == nil && len(w.Species) > 0 {
@@ -236,7 +236,7 @@ func Run(w *workspace.Workspace) *Report {
 				Severity: Error,
 				Fix:      FixNone,
 				Message:  fmt.Sprintf("%s has no .env", st.Dir),
-				Hint:     fmt.Sprintf("cd %s && ./init.sh  (or use emobase create)", st.Dir),
+				Hint:     fmt.Sprintf("`cd %s && ./init.sh`  (or `emobase create`)", st.Dir),
 			})
 		}
 	}
@@ -300,7 +300,7 @@ func checkSpeciesProjectName(r *Report, st *workspace.Stack) {
 		Severity: Error,
 		Fix:      FixSafe,
 		Message:  "COMPOSE_PROJECT_NAME is empty; Compose would fall back to the directory name",
-		Hint:     fmt.Sprintf("emobase doctor --fix sets it to %q", want),
+		Hint:     fmt.Sprintf("`emobase doctor --fix` sets it to %q", want),
 		apply:    setter(st, "COMPOSE_PROJECT_NAME", want, false),
 	})
 }
@@ -317,7 +317,7 @@ func checkRequired(r *Report, st *workspace.Stack, keys []string) {
 			Severity: Error,
 			Fix:      FixNone,
 			Message:  key + " is missing",
-			Hint:     fmt.Sprintf("run ./init.sh in %s (or emobase create) to generate it", st.Dir),
+			Hint:     fmt.Sprintf("run `./init.sh` in %s (or `emobase create`) to generate it", st.Dir),
 		})
 	}
 }
@@ -358,7 +358,7 @@ func compareShared(r *Report, infra, st *workspace.Stack, sk spec.SharedKey) {
 			Severity: Error,
 			Fix:      FixSafe,
 			Message:  fmt.Sprintf("%s is missing or a placeholder; it must match %s (%s)", sk.Key, spec.AuthorityInfra, display(want)),
-			Hint:     fmt.Sprintf("emobase doctor --fix  (copies %s from emobase-infra)", sk.Key),
+			Hint:     fmt.Sprintf("`emobase doctor --fix`  (copies %s from emobase-infra)", sk.Key),
 			apply:    setter(st, sk.Key, want, sk.Secret),
 		})
 		return
@@ -372,7 +372,7 @@ func compareShared(r *Report, infra, st *workspace.Stack, sk spec.SharedKey) {
 		Severity: Error,
 		Fix:      FixChoose,
 		Message:  fmt.Sprintf("%s does not match emobase-infra (%s != %s)", sk.Key, display(got), display(want)),
-		Hint:     fmt.Sprintf("emobase doctor --fix --yes copies emobase-infra's value; verify manually first"),
+		Hint:     fmt.Sprintf("`emobase doctor --fix --yes` copies emobase-infra's value; verify manually first"),
 		apply:    setter(st, sk.Key, want, sk.Secret),
 	})
 }
@@ -397,7 +397,7 @@ func checkSpeciesRealm(r *Report, w *workspace.Workspace, st *workspace.Stack) {
 			Severity: Error,
 			Fix:      FixNone,
 			Message:  "KEYCLOAK_REALM is missing; choose a shared or dedicated realm",
-			Hint:     "emobase create species --realm shared   (or --realm ibb_<species>)",
+			Hint:     "`emobase create species --realm shared`   (or `--realm ibb_<species>`)",
 		})
 		return
 	}
@@ -416,7 +416,7 @@ func checkSpeciesRealm(r *Report, w *workspace.Workspace, st *workspace.Stack) {
 			Severity: Error,
 			Fix:      FixNone,
 			Message:  fmt.Sprintf("dedicated realm %s needs KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET", realm),
-			Hint:     fmt.Sprintf("cd %s && ./scripts/... or re-run emobase create species with --realm %s", st.Dir, realm),
+			Hint:     fmt.Sprintf("`cd %s` and run the repository's realm setup, or re-run `emobase create species --realm %s`", st.Dir, realm),
 		})
 	}
 }
@@ -460,7 +460,7 @@ func checkPortalURL(r *Report, w *workspace.Workspace) {
 			Severity: Error,
 			Fix:      FixSafe,
 			Message:  "PORTAL_PUBLIC_SERVER is missing; it seeds the shared realm redirect URI",
-			Hint:     "emobase doctor --fix copies the portal PUBLIC_SERVER",
+			Hint:     "`emobase doctor --fix` copies the portal PUBLIC_SERVER",
 			apply:    setter(w.Infra, "PORTAL_PUBLIC_SERVER", portalURL, false),
 		})
 		return
@@ -495,7 +495,7 @@ func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
 				Severity: Error,
 				Fix:      FixNone,
 				Message:  "PORTAL_SERVER is missing and no local portal PUBLIC_SERVER is available",
-				Hint:     "pass the portal URL to ./init.sh or emobase create species --portal-server",
+				Hint:     "pass the portal URL to `./init.sh` or `emobase create species --portal-server`",
 			})
 		}
 		return
@@ -515,7 +515,7 @@ func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
 				Severity: Error,
 				Fix:      FixSafe,
 				Message:  "PORTAL_SERVER is missing; the species site needs the portal URL",
-				Hint:     "emobase doctor --fix copies the portal PUBLIC_SERVER",
+				Hint:     "`emobase doctor --fix` copies the portal PUBLIC_SERVER",
 				apply:    setter(sp, "PORTAL_SERVER", portalURL, false),
 			})
 			continue
@@ -526,7 +526,7 @@ func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
 			Severity: Error,
 			Fix:      FixChoose,
 			Message:  fmt.Sprintf("PORTAL_SERVER (%s) differs from the local portal (%s)", got, portalURL),
-			Hint:     "emobase doctor --fix --yes points this species at the local portal",
+			Hint:     "`emobase doctor --fix --yes` points this species at the local portal",
 			apply:    setter(sp, "PORTAL_SERVER", portalURL, false),
 		})
 	}
@@ -743,7 +743,7 @@ func checkPlaceholders(r *Report, w *workspace.Workspace) {
 					Severity: Warn,
 					Fix:      FixNone,
 					Message:  key + " still has an example value",
-					Hint:     fmt.Sprintf("regenerate it with ./init.sh in %s", st.Dir),
+					Hint:     fmt.Sprintf("regenerate it with `./init.sh` in %s", st.Dir),
 				})
 			}
 		}

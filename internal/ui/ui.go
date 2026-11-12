@@ -24,6 +24,7 @@ var (
 	styleOK    = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
 	styleMuted = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240", Dark: "250"})
 	styleBold  = lipgloss.NewStyle().Bold(true)
+	styleCmd   = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "25", Dark: "45"}).Bold(true)
 )
 
 func paint(s lipgloss.Style, v string) string {
@@ -38,6 +39,26 @@ func Title(s string) string { return paint(styleBold, s) }
 
 // Muted renders secondary text.
 func Muted(s string) string { return paint(styleMuted, s) }
+
+// Hint renders guidance text. Commands inside backticks stay delimited in plain
+// output and are highlighted when colour is enabled.
+func Hint(s string) string {
+	if !color {
+		return s
+	}
+	var b strings.Builder
+	for i, part := range strings.Split(s, "`") {
+		if part == "" {
+			continue
+		}
+		if i%2 == 1 {
+			b.WriteString(styleCmd.Render("`" + part + "`"))
+		} else {
+			b.WriteString(styleMuted.Render(part))
+		}
+	}
+	return b.String()
+}
 
 // OK renders a success marker.
 func OK(s string) string { return paint(styleOK, s) }

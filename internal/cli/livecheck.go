@@ -19,7 +19,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 	if !live.DockerAvailable(ctx) {
 		rep.Add(checks.Advisory("live.docker", "workspace", checks.Warn,
 			"Docker daemon is not reachable; runtime checks skipped",
-			"start Docker and re-run emobase doctor --live"))
+			"start Docker and re-run `emobase doctor --live`"))
 		return
 	}
 	if ws.Infra == nil {
@@ -42,7 +42,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		if !ok {
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
 				fmt.Sprintf("%s container has not been created", svc),
-				"emobase up --only infra"))
+				"`emobase up --only infra`"))
 			continue
 		}
 		state := c.State
@@ -54,11 +54,11 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		case !up:
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
 				fmt.Sprintf("%s container is not running (%s)", svc, state),
-				"emobase up --only infra"))
+				"`emobase up --only infra`"))
 		case c.Health == "unhealthy":
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
 				fmt.Sprintf("%s container is unhealthy", svc),
-				fmt.Sprintf("cd %s && docker compose logs --tail=100 %s", ws.Infra.Dir, svc)))
+				fmt.Sprintf("`cd %s && docker compose logs --tail=100 %s`", ws.Infra.Dir, svc)))
 		}
 		if up {
 			if svc == "mysql" {
@@ -76,7 +76,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		if ok, err := live.NetworkExists(ctx, netName); err != nil || !ok {
 			rep.Add(checks.Advisory("live.network", "infra", checks.Error,
 				fmt.Sprintf("shared Docker network %q is missing", netName),
-				"emobase up --only infra (Compose creates it)"))
+				"`emobase up --only infra` (Compose creates it)"))
 		}
 	}
 
@@ -110,7 +110,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 				dbCopy, scopeCopy := db, scope
 				rep.Add(checks.Action("live.database", scope, checks.Error, checks.FixSafe,
 					fmt.Sprintf("database %q does not exist", db),
-					"emobase doctor --fix --live creates it with emobase-infra/scripts/create-database.sh",
+					"`emobase doctor --fix --live` creates it with `emobase-infra/scripts/create-database.sh`",
 					func() ([]checks.Change, error) {
 						if err := runner.CreateDatabase(ws.Infra.Dir, dbCopy); err != nil {
 							return nil, err
@@ -142,7 +142,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 				case crep == nil:
 					rep.Add(checks.Advisory("live.client", "infra", checks.Error,
 						fmt.Sprintf("client %q does not exist in realm %q", clientID, infraRealm),
-						"reset the shared realm or re-run emobase-infra/init.sh"))
+						"reset the shared realm or re-run `emobase-infra/init.sh`"))
 				default:
 					for _, sp := range ws.Species {
 						realm, _ := sp.Get("KEYCLOAK_REALM")
@@ -156,7 +156,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 						originCopy, scopeCopy := origin, checks.ScopeOf(sp)
 						rep.Add(checks.Action("live.redirect_uri", scopeCopy, checks.Error, checks.FixSafe,
 							fmt.Sprintf("origin %s is not registered on shared client %q", origin, clientID),
-							"emobase doctor --fix --live registers it with allow-origin.sh",
+							"`emobase doctor --fix --live` registers it with `allow-origin.sh`",
 							func() ([]checks.Change, error) {
 								if err := runner.AllowOrigin(ws.Infra.Dir, originCopy); err != nil {
 									return nil, err
@@ -174,7 +174,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 				if ok, err := kc.RealmReachable(ctx, realm); err != nil || !ok {
 					rep.Add(checks.Advisory("live.realm", checks.ScopeOf(sp), checks.Error,
 						fmt.Sprintf("dedicated realm %q is not reachable", realm),
-						"re-run emobase create species, or start emobase-infra"))
+						"re-run `emobase create species`, or start `emobase-infra`"))
 				}
 			}
 		}
@@ -188,7 +188,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 			} else if code >= 500 {
 				rep.Add(checks.Advisory("live.portal", "portal", checks.Error,
 					fmt.Sprintf("portal returned HTTP %d", code),
-					"emobase status; docker compose logs --tail=100 fe genomicsservice"))
+					"`emobase status`; `docker compose logs --tail=100 fe genomicsservice`"))
 			}
 		}
 	}
