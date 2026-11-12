@@ -19,15 +19,15 @@ to touch.
 
 ## Install
 
-Go 1.25 or newer is needed **only to build**. The binary is statically linked
-(`CGO_ENABLED=0`), so servers need no Go toolchain: just Docker, `git` and
-`python3` for the repository scripts.
+Prebuilt binaries are available for Linux and macOS (`amd64` and `arm64`) on
+the [releases page](https://github.com/EMOBase/emobase-cli/releases). Building
+from source requires Go 1.25 or newer.
 
-### From a release (recommended, no Go needed)
+The deployment host needs Docker with Compose, `git`, and `python3`.
 
-Every `v*` tag publishes Linux and macOS binaries for `amd64` and `arm64` on the
-[releases page](https://github.com/EMOBase/emobase-cli/releases). Install a
-published version directly on the server:
+### From a release
+
+Download and install a published version on the server:
 
 ```sh
 VER=0.1.0
@@ -71,7 +71,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 ### Build and copy to a server (offline or unreleased)
 
-Cross-compile from your machine (no Go required on the server):
+Cross-compile the Linux binaries on your machine:
 
 ```sh
 make build-linux      # dist/emobase-linux-amd64 and dist/emobase-linux-arm64
@@ -101,8 +101,8 @@ emobase --workspace /srv/emobase doctor
 
 ## Quick start
 
-Put the checkouts side by side. Discovery is signature-based, so directory names
-may differ; only the Compose services matter.
+Put the checkouts side by side. Directory names may differ; each checkout is
+identified by its `compose.yml`.
 
 ```
 work/
@@ -178,15 +178,13 @@ global.
 - Species `PORTAL_SERVER` values point at the local portal.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
-- URLs have no trailing slash (Keycloak treats it as a different issuer).
+- URLs have no trailing slash.
 - `INTERNAL_KEYCLOAK_ISSUER`/`DIRECTUS_KEYCLOAK_ISSUER_URL` end with
   `/realms/<realm>`.
-- Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`,
-  which inside a container points at the container itself.
+- Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - A dedicated-realm species owns its client ID and secret.
-- `COMPOSE_PROJECT_NAME` is set, so two clones cannot silently share container
-  names.
+- `COMPOSE_PROJECT_NAME` is set and unique.
 - No `change-me` placeholders remain.
 
 `--live` additionally checks the Docker daemon, the shared network, container
@@ -200,7 +198,7 @@ Findings advertise what it takes to resolve them:
 | Class | Behaviour |
 | --- | --- |
 | `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, adds a derived Compose project name. |
-| `choose` | Applied only by `doctor --fix --yes`. A real conflict, for example a mismatched MySQL password; accepting infra's value is usually right but may discard a deliberate local choice. |
+| `choose` | Applied only by `doctor --fix --yes`. A real conflict, for example a mismatched MySQL password. Accepts infra's value. |
 | `destructive` | Never applied automatically. Changing a Keycloak issuer/origin after the realm was imported needs a manual realm update or a reset. `doctor` only reports it. |
 
 `.env` files are edited in place, preserving comments and ordering. A `<file>.env.bak`
