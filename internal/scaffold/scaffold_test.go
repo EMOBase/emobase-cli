@@ -37,6 +37,33 @@ func TestDryRunPrintsWithoutExecuting(t *testing.T) {
 	}
 }
 
+func TestOneShotComposeRunsDisableTTY(t *testing.T) {
+	tests := []struct {
+		name string
+		run  func(*Runner) error
+		want string
+	}{
+		{"jbrowse2", func(r *Runner) error { return r.SetupJBrowse2("/tmp/portal") },
+			"docker compose --profile setup run -T --rm setup-jbrowse2-web"},
+		{"migrate", func(r *Runner) error { return r.Migrate("/tmp/portal") },
+			"docker compose --profile update run -T --rm migrate-genomics-db"},
+		{"directus", func(r *Runner) error { return r.SetupDirectus("/tmp/species") },
+			"docker compose run -T --rm setup-directus"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			r := &Runner{DryRun: true, Stdout: &out, Stderr: &out}
+			if err := tt.run(r); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(out.String(), tt.want) {
+				t.Fatalf("output %q does not contain %q", out.String(), tt.want)
+			}
+		})
+	}
+}
+
 func TestCloneRunsFromParent(t *testing.T) {
 	var out bytes.Buffer
 	r := &Runner{DryRun: true, Stdout: &out}

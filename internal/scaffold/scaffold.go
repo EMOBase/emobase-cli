@@ -92,22 +92,24 @@ func (r *Runner) Destroy(dir string) error {
 	return r.Compose(dir, "--profile", "*", "down", "-v")
 }
 
-// SetupJBrowse2 runs the portal's one-shot JBrowse2 initialiser.
+// SetupJBrowse2 runs the portal's one-shot JBrowse2 initialiser. -T disables
+// Compose's pseudo-TTY allocation: the CLI captures output through pipes, so
+// Docker rejects a TTY when stdin is not a terminal.
 func (r *Runner) SetupJBrowse2(dir string) error {
-	return r.Compose(dir, "--profile", "setup", "run", "--rm", "setup-jbrowse2-web")
+	return r.Compose(dir, "--profile", "setup", "run", "-T", "--rm", "setup-jbrowse2-web")
 }
 
 // Migrate runs the portal's database and Elasticsearch migrations.
 func (r *Runner) Migrate(dir string) error {
-	if err := r.Compose(dir, "--profile", "update", "run", "--rm", "migrate-genomics-db"); err != nil {
+	if err := r.Compose(dir, "--profile", "update", "run", "-T", "--rm", "migrate-genomics-db"); err != nil {
 		return err
 	}
-	return r.Compose(dir, "--profile", "update", "run", "--rm", "migrate-genomics-es")
+	return r.Compose(dir, "--profile", "update", "run", "-T", "--rm", "migrate-genomics-es")
 }
 
 // SetupDirectus runs the species one-shot Directus initialiser.
 func (r *Runner) SetupDirectus(dir string) error {
-	return r.Compose(dir, "run", "--rm", "setup-directus")
+	return r.Compose(dir, "run", "-T", "--rm", "setup-directus")
 }
 
 // SmokeTest runs the portal smoke test.
