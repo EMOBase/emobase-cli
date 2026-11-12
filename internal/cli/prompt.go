@@ -72,6 +72,29 @@ func prompt(cmd *cobra.Command, label, def string, value *string) error {
 	return nil
 }
 
+// promptEdit always asks, using current as the default. It is used for forms
+// where the existing value should be shown and pressing Enter keeps it.
+func promptEdit(cmd *cobra.Command, label, current string) (string, error) {
+	if !canPrompt(cmd.InOrStdin()) {
+		return "", fmt.Errorf("cannot ask %q: stdin is not a terminal", label)
+	}
+	out := cmd.ErrOrStderr()
+	if current == "" {
+		fmt.Fprintf(out, "%s: ", label)
+	} else {
+		fmt.Fprintf(out, "%s [%s]: ", label, current)
+	}
+	line, err := readPromptLine(cmd.InOrStdin())
+	if err != nil && line == "" {
+		return "", fmt.Errorf("reading %q: %w", label, err)
+	}
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return current, nil
+	}
+	return line, nil
+}
+
 // promptRequired asks until the user enters a non-empty value. It has no
 // default; the example is shown only as a hint.
 func promptRequired(cmd *cobra.Command, label, example string) (string, error) {

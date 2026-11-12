@@ -134,6 +134,20 @@ func (r *Runner) EnsureSharedRealm(infraDir, origin string) error {
 	return r.Script(infraDir, "./scripts/ensure-shared-realm.sh", origin)
 }
 
+// EnsureDedicatedRealm creates a dedicated realm if needed and adds an origin.
+func (r *Runner) EnsureDedicatedRealm(infraDir, realm, origin, clientID, clientSecret, cocoUser, cocoPassword string) error {
+	return r.Script(infraDir, "./scripts/create-realm.sh",
+		"--realm", realm,
+		"--origin", origin,
+		"--client-id", clientID,
+		"--client-secret", clientSecret,
+		"--coco-username", cocoUser,
+		"--coco-password", cocoPassword,
+		"--keep-password",
+		"--quiet",
+	)
+}
+
 // AllowOrigin registers another shared-realm origin with Keycloak.
 func (r *Runner) AllowOrigin(infraDir, origin string) error {
 	return r.Script(infraDir, "./scripts/allow-origin.sh", origin)

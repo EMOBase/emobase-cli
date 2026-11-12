@@ -219,6 +219,35 @@ emobase bootstrap
 when infra is already running. If it is not, `emobase up` or
 `emobase bootstrap` does it after starting infra.
 
+## Changing public URLs
+
+Use `emobase domain` after DNS and TLS work. It changes the browser-facing
+URLs, the Keycloak issuer, the dependent `.env` files, and the realm origins in
+one transaction.
+
+```sh
+emobase domain            # prompts with the current values as defaults
+emobase domain plan       # show the changes without applying them
+emobase domain status     # show the configured URLs
+```
+
+Non-interactive form:
+
+```sh
+emobase domain apply --yes \
+  --auth https://auth.example.org/keycloak \
+  --portal https://portal.example.org \
+  --species Tcas=https://tcas.example.org
+```
+
+Pass `--species REF=URL` once per changed species. Values not passed keep their
+current setting. Changing the Keycloak URL invalidates existing login sessions;
+changing the portal URL updates every species `PORTAL_SERVER`.
+
+The command does not configure DNS, TLS, or the reverse proxy, and it refuses
+to apply changes while Keycloak is down. Old realm origins are left in place;
+remove them in the Keycloak admin console if the cutover is permanent.
+
 ## Commands
 
 | Command | What it does |
@@ -227,6 +256,7 @@ when infra is already running. If it is not, `emobase up` or
 | `emobase doctor [--fix] [--yes] [--live] [--json]` | Static (and optionally runtime) cross-repo checks; `--fix` applies safe repairs |
 | `emobase status` | Live containers, Docker network, MySQL databases, realms and HTTP status |
 | `emobase env matrix [--json]` | One row per shared key, one column per stack; secrets masked |
+| `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add ...` | Same as `emobase create species` |
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
