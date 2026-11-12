@@ -1,0 +1,84 @@
+name: Latest main build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: latest-main
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: |
+          test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+          go vet ./...
+          go test ./...
+
+      - name: Build archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          short="$(git rev-parse --short=12 HEAD)"
+          version="main-${short}"
+          mkdir -p dist
+
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64; do
+            goos="${target%/*}"
+            goarch="${target#*/}"
+            dir="dist/emobase_${goos}_${goarch}"
+            mkdir -p "$dir"
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath \
+                -ldflags "-s -w -X github.com/EMOBase/emobase-cli/internal/cli.version=${version}" \
+                -o "$dir/emobase" ./cmd/emobase
+            tar -C "$dir" -czf "dist/emobase_${goos}_${goarch}.tar.gz" emobase
+          done
+
+          (cd dist && sha256sum emobase_*.tar.gz > checksums.txt)
+          cat dist/checksums.txt
+
+      - name: Publish latest release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          short="$(git rev-parse --short=12 HEAD)"
+          version="main-${short}"
+          notes="Rolling build from the latest commit on main (${short}). This is not a tagged release; use a v* release for a pinned version."
+
+          git tag -f latest "$GITHUB_SHA"
+          git push --force origin refs/tags/latest
+
+          if gh release view latest >/dev/null 2>&1; then
+            gh release upload latest dist/*.tar.gz dist/checksums.txt --clobber
+            gh release edit latest --title "Latest main build" --notes "$notes" --prerelease
+          else
+            gh release create latest dist/*.tar.gz dist/checksums.txt \
+              --title "Latest main build" --notes "$notes" --prerelease
+          fi
+
+          {
+            echo "### Latest main build"
+            echo
+            echo "- Commit: ${GITHUB_SHA}"
+            echo "- Version: ${version}"
+            echo "- Assets: emobase_<os>_<arch>.tar.gz"
+          } >> "$GITHUB_STEP_SUMMARY"

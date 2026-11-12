@@ -25,7 +25,49 @@ from source requires Go 1.25 or newer.
 
 The deployment host needs Docker with Compose, `git`, and `python3`.
 
-### From a release
+### Latest build from `main` (rolling)
+
+Every push to `main` publishes a `latest` release with stable asset names. It
+changes with each commit, so use a tagged release for production
+reproducibility. `emobase --version` reports `main-<commit>`.
+
+#### Linux server
+
+```sh
+case "$(uname -m)" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+
+curl -fsSLO "$BASE/emobase_linux_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/checksums.txt"
+grep "linux_${ARCH}" checksums.txt | sha256sum -c -
+tar -xzf "emobase_linux_${ARCH}.tar.gz" emobase
+sudo install -m 0755 emobase /usr/local/bin/emobase
+emobase --version
+```
+
+#### macOS
+
+```sh
+case "$(uname -m)" in
+  x86_64) ARCH=amd64 ;;
+  arm64) ARCH=arm64 ;;
+  *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+esac
+BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+
+curl -fsSLO "$BASE/emobase_darwin_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/checksums.txt"
+grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
+tar -xzf "emobase_darwin_${ARCH}.tar.gz" emobase
+./emobase --version
+sudo install -m 0755 emobase /usr/local/bin/emobase
+```
+
+### Tagged release (pinned)
 
 #### Linux server
 
@@ -302,8 +344,17 @@ internal/ui          colour and tables
 
 ## Releasing
 
-Releases are built by GitHub Actions with GoReleaser (`.goreleaser.yaml`).
-Pushing a `v*` tag builds, tests, and publishes the binaries and `checksums.txt`:
+There are two channels:
+
+- **Latest main build** — every push to `main` runs
+  `.github/workflows/latest.yml`. It tests the commit, builds all four
+  platforms, and moves the `latest` tag to publish stable asset names such as
+  `emobase_linux_amd64.tar.gz` and `checksums.txt`. The `latest` release is
+  marked as a pre-release so tagged versions remain GitHub's "Latest".
+- **Tagged release** — pushing a `v*` tag runs `.github/workflows/release.yml`
+  with GoReleaser (`.goreleaser.yaml`) and publishes versioned assets.
+
+Tagged release:
 
 ```sh
 git tag v0.1.2
@@ -311,7 +362,14 @@ git push origin v0.1.2
 gh run watch --workflow=release.yml
 ```
 
-To test the release configuration locally without publishing:
+Latest main build:
+
+```sh
+git push origin main
+gh run watch --workflow=latest.yml
+```
+
+To test the GoReleaser configuration locally without publishing:
 
 ```sh
 brew install goreleaser

@@ -1,6 +1,6 @@
 BINARY  := emobase
 PREFIX  ?= /usr/local
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION ?= $(shell git describe --tags --match 'v*' --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -s -w -X github.com/EMOBase/emobase-cli/internal/cli.version=$(VERSION)
 
 GOOS   ?= $(shell go env GOHOSTOS)
