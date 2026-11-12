@@ -22,7 +22,6 @@ KEYCLOAK_ADMIN_PASSWORD=admin-secret
 COCO_USERNAME=coco
 COCO_PASSWORD=coco-secret
 EMOBASE_INFRA_NETWORK=emobase-infra
-PORTAL_PUBLIC_SERVER=https://portal.example.org
 `
 
 const portalEnv = `PUBLIC_SERVER=https://portal.example.org
@@ -115,7 +114,6 @@ func findingsWorkspace() *workspace.Workspace {
 
 func conflictWorkspace() *workspace.Workspace {
 	ws := healthyWorkspace()
-	ws.Infra.Env.Set("PORTAL_PUBLIC_SERVER", "https://old-portal.example.org")
 
 	dmel := previewStack(workspace.RoleSpecies, "emobase-deploy-dmel", tcasEnv, "tcas")
 	dmel.Env.Set("MAIN_SPECIES", "Dmel")

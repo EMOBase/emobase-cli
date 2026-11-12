@@ -258,7 +258,6 @@ func Run(w *workspace.Workspace) *Report {
 		checkSpeciesRealm(r, w, sp)
 		checkIssuerKeys(r, sp)
 	}
-	checkPortalURL(r, w)
 	checkSpeciesPortalURL(r, w)
 	checkTrailingSlashes(r, w)
 	checkUniqueness(r, w)
@@ -444,45 +443,10 @@ func checkIssuerKeys(r *Report, st *workspace.Stack) {
 	}
 }
 
-func checkPortalURL(r *Report, w *workspace.Workspace) {
-	if w.Infra == nil || w.Portal == nil || w.Infra.MissingEnv || w.Portal.MissingEnv {
-		return
-	}
-	portalURL, _ := w.Portal.Get("PUBLIC_SERVER")
-	infraURL, ok := w.Infra.Get("PORTAL_PUBLIC_SERVER")
-	if portalURL == "" {
-		return
-	}
-	if !ok || spec.IsPlaceholder(infraURL) {
-		r.add(Finding{
-			Check:    "portal.public_server",
-			Scope:    "infra",
-			Severity: Error,
-			Fix:      FixSafe,
-			Message:  "PORTAL_PUBLIC_SERVER is missing; it seeds the shared realm redirect URI",
-			Hint:     "`emobase doctor --fix` copies the portal PUBLIC_SERVER",
-			apply:    setter(w.Infra, "PORTAL_PUBLIC_SERVER", portalURL, false),
-		})
-		return
-	}
-	if spec.NormalizeURL(infraURL) != spec.NormalizeURL(portalURL) {
-		r.add(Finding{
-			Check:    "portal.public_server",
-			Scope:    "workspace",
-			Severity: Error,
-			Fix:      FixDestructive,
-			Message:  fmt.Sprintf("portal PUBLIC_SERVER (%s) differs from infra PORTAL_PUBLIC_SERVER (%s)", portalURL, infraURL),
-			Hint:     "Keycloak imported the realm once; changing the URL requires editing the realm or resetting Keycloak. emobase doctor will not touch this.",
-		})
-	}
-}
-
 func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
 	var portalURL string
 	if w.Portal != nil && !w.Portal.MissingEnv {
 		portalURL, _ = w.Portal.Get("PUBLIC_SERVER")
-	} else if w.Infra != nil {
-		portalURL, _ = w.Infra.Get("PORTAL_PUBLIC_SERVER")
 	}
 	if portalURL == "" {
 		for _, sp := range w.Species {

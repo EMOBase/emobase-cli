@@ -201,18 +201,23 @@ default without prompting:
 # Local trial without questions.
 emobase --yes create infra --local
 emobase --yes create portal --local
-emobase --yes create species --species Tcas --local --clone --apply
+emobase --yes create species --species Tcas --local --clone
+emobase bootstrap
 
 # Server deployment: answer only the URL questions.
 emobase create infra \
-  --portal-server https://portal.example.org \
   --keycloak-public-url https://auth.example.org/keycloak
 
 emobase create portal --public-server https://portal.example.org
 emobase create species --species Tcas \
   --public-server https://tcas.example.org \
-  --clone --apply
+  --clone
+emobase bootstrap
 ```
+
+`create portal` and `create species` create or update the shared Keycloak realm
+when infra is already running. If it is not, `emobase up` or
+`emobase bootstrap` does it after starting infra.
 
 ## Commands
 
@@ -242,8 +247,6 @@ global.
 - Shared keys match the authoritative `emobase-infra` values
   (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL`,
   `EMOBASE_INFRA_NETWORK`, and the shared realm/client keys when used).
-- The portal's `PUBLIC_SERVER` matches infra's `PORTAL_PUBLIC_SERVER`, which
-  seeds the realm redirect URI.
 - Species `PORTAL_SERVER` values point at the local portal.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
@@ -268,7 +271,7 @@ Findings advertise what it takes to resolve them:
 | --- | --- |
 | `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, adds a derived Compose project name. |
 | `choose` | Applied only by `doctor --fix --yes`. A real conflict, for example a mismatched MySQL password. Accepts infra's value. |
-| `destructive` | Never applied automatically. Changing a Keycloak issuer/origin after the realm was imported needs a manual realm update or a reset. `doctor` only reports it. |
+| `destructive` | Never applied automatically. Changing a Keycloak issuer/origin after the realm was created needs a manual realm update or a reset. `doctor` only reports it. |
 
 `.env` files are edited in place, preserving comments and ordering. A `<file>.env.bak`
 copy of the previous contents is kept before each save.

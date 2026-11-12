@@ -59,6 +59,9 @@ func (a *App) upCmd() *cobra.Command {
 						return err
 					}
 				}
+				if err := ensureStackRealm(cmd.Context(), r, ws, st); err != nil {
+					return err
+				}
 				if err := r.Up(st.Dir); err != nil {
 					return err
 				}

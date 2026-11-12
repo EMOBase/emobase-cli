@@ -53,8 +53,8 @@ stay in its own .env; the CLI never stores or copies them.`,
 }
 
 type infraOpts struct {
-	dir, portalServer, keycloakURL, keycloakPort, realm, clientID, network string
-	local, force, clone, dryRun                                            bool
+	dir, keycloakURL, keycloakPort, realm, clientID, network string
+	local, force, clone, dryRun                              bool
 }
 
 func (a *App) createInfraCmd() *cobra.Command {
@@ -98,7 +98,6 @@ func (a *App) createInfraCmd() *cobra.Command {
 			if o.force {
 				initArgs = append(initArgs, "--force")
 			}
-			add("--portal-server", o.portalServer)
 			add("--keycloak-public-url", o.keycloakURL)
 			add("--keycloak-host-port", o.keycloakPort)
 			add("--keycloak-realm", o.realm)
@@ -109,7 +108,6 @@ func (a *App) createInfraCmd() *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/emobase-infra)")
-	f.StringVar(&o.portalServer, "portal-server", "", "portal PUBLIC_SERVER, seeds the shared realm redirect URI")
 	f.StringVar(&o.keycloakURL, "keycloak-public-url", "", "browser-facing Keycloak base URL, e.g. https://auth.example.org/keycloak")
 	f.StringVar(&o.keycloakPort, "keycloak-host-port", "", "host port for Keycloak (default 8081)")
 	f.StringVar(&o.realm, "keycloak-realm", "", "shared realm name (default ibb)")
@@ -176,7 +174,34 @@ func (a *App) createPortalCmd() *cobra.Command {
 				initArgs = append(initArgs, "--http-port", o.httpPort)
 			}
 			initArgs = append(initArgs, "--infra-dir", o.infraDir)
-			return r.Init(o.dir, initArgs...)
+			if err := r.Init(o.dir, initArgs...); err != nil {
+				return err
+			}
+			if o.dryRun {
+				return nil
+			}
+			ws, err := workspace.Discover(root)
+			if err != nil {
+				return fmt.Errorf(".env created, but rediscovery failed: %w", err)
+			}
+			if ws.Portal == nil || ws.Portal.MissingEnv {
+				return fmt.Errorf(".env created, but %s was not recognised as a portal checkout", o.dir)
+			}
+			origin, _ := ws.Portal.Get("PUBLIC_SERVER")
+			if origin == "" {
+				return fmt.Errorf("%s has no PUBLIC_SERVER", ws.Portal.EnvPath)
+			}
+			fmt.Fprintln(cmd.OutOrStdout())
+			if keycloakRunning(cmd.Context(), ws) {
+				fmt.Fprintln(cmd.OutOrStdout(), title("Keycloak realm"))
+				if err := r.EnsureSharedRealm(ws.Infra.Dir, origin); err != nil {
+					return err
+				}
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), muted("Keycloak is not running; the shared realm will be created by emobase up or emobase bootstrap."))
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Created "+ws.Portal.EnvPath)
+			return nil
 		},
 	}
 	f := cmd.Flags()
@@ -333,6 +358,17 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 		}
 	}
 	if !o.apply {
+		if origin, ok := sharedRealmOrigin(ws, sp); ok {
+			if keycloakRunning(cmd.Context(), ws) {
+				fmt.Fprintln(cmd.OutOrStdout(), title("Keycloak realm"))
+				if err := r.EnsureSharedRealm(ws.Infra.Dir, origin); err != nil {
+					return err
+				}
+				fmt.Fprintln(cmd.OutOrStdout())
+			} else {
+				fmt.Fprintln(cmd.OutOrStdout(), muted("Keycloak is not running; the shared realm will be created by emobase species setup or emobase bootstrap."))
+			}
+		}
 		fmt.Fprintln(cmd.OutOrStdout())
 		fmt.Fprintln(cmd.OutOrStdout(), "Created "+sp.EnvPath)
 		fmt.Fprintln(cmd.OutOrStdout(), "Next: emobase species setup "+filepath.Base(o.dir))
@@ -359,8 +395,8 @@ func (a *App) setupSpecies(cmd *cobra.Command, ws *workspace.Workspace, sp *work
 	infraRealm, _ := ws.Infra.Get("KEYCLOAK_REALM")
 	origin, _ := sp.Get("PUBLIC_SERVER")
 	if realm == infraRealm && origin != "" {
-		fmt.Fprintln(out, title("Keycloak origin"))
-		if err := r.AllowOrigin(ws.Infra.Dir, origin); err != nil {
+		fmt.Fprintln(out, title("Keycloak realm"))
+		if err := r.EnsureSharedRealm(ws.Infra.Dir, origin); err != nil {
 			return err
 		}
 	}

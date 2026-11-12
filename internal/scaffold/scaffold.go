@@ -129,7 +129,12 @@ func (r *Runner) DropDatabase(infraDir, db string) error {
 	return r.Script(infraDir, "./scripts/drop-database.sh", db)
 }
 
-// AllowOrigin registers a shared-realm origin with Keycloak.
+// EnsureSharedRealm creates the shared realm if needed and allows one origin.
+func (r *Runner) EnsureSharedRealm(infraDir, origin string) error {
+	return r.Script(infraDir, "./scripts/ensure-shared-realm.sh", origin)
+}
+
+// AllowOrigin registers another shared-realm origin with Keycloak.
 func (r *Runner) AllowOrigin(infraDir, origin string) error {
 	return r.Script(infraDir, "./scripts/allow-origin.sh", origin)
 }

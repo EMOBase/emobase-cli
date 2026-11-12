@@ -30,7 +30,6 @@ func infraEnv() map[string]string {
 		"KEYCLOAK_REALM":          "ibb",
 		"KEYCLOAK_CLIENT_ID":      "ibb-client",
 		"KEYCLOAK_CLIENT_SECRET":  "client-secret",
-		"PORTAL_PUBLIC_SERVER":    "http://localhost:9080",
 	}
 }
 
@@ -286,49 +285,6 @@ func TestTrailingSlashIsSafeFix(t *testing.T) {
 	ws = reload(t, root)
 	if got, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL"); got != "http://localhost:8081/keycloak" {
 		t.Fatalf("value = %q", got)
-	}
-}
-
-func TestPortalPublicServerSeedsInfra(t *testing.T) {
-	root, envs := fixture(t)
-	delete(envs["emobase-infra"], "PORTAL_PUBLIC_SERVER")
-	ws := discover(t, root, envs)
-
-	rep := Run(ws)
-	f := find(rep, "portal.public_server")
-	if f == nil {
-		t.Fatal("expected portal.public_server")
-	}
-	if f.Fix != FixSafe {
-		t.Fatalf("fix = %v", f.Fix)
-	}
-	if _, err := Apply(ws, rep, false); err != nil {
-		t.Fatal(err)
-	}
-	ws = reload(t, root)
-	if got, _ := ws.Infra.Get("PORTAL_PUBLIC_SERVER"); got != "http://localhost:9080" {
-		t.Fatalf("value = %q", got)
-	}
-}
-
-func TestPortalOriginChangeIsDestructive(t *testing.T) {
-	root, envs := fixture(t)
-	envs["emobase-infra"]["PORTAL_PUBLIC_SERVER"] = "https://old.example.org"
-	ws := discover(t, root, envs)
-
-	rep := Run(ws)
-	f := find(rep, "portal.public_server")
-	if f == nil {
-		t.Fatal("expected portal.public_server")
-	}
-	if f.Fix != FixDestructive || f.CanApply(true) || f.CanApply(false) {
-		t.Fatalf("destructive finding must never be applicable: %v", f.Fix)
-	}
-	if changes, err := Apply(ws, rep, true); err != nil || len(changes) != 0 {
-		t.Fatalf("changes = %#v, %v", changes, err)
-	}
-	if got, _ := ws.Infra.Get("PORTAL_PUBLIC_SERVER"); got != "https://old.example.org" {
-		t.Fatal("destructive value was changed")
 	}
 }
 
