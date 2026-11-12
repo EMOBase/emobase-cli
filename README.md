@@ -30,7 +30,7 @@ The deployment host needs Docker with Compose, `git`, and `python3`.
 #### Linux server
 
 ```sh
-VER=0.1.0
+VER=0.1.1
 ARCH=amd64        # uname -m: x86_64 -> amd64, aarch64/arm64 -> arm64
 BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
 
@@ -45,7 +45,7 @@ emobase --version
 #### macOS
 
 ```sh
-VER=0.1.0
+VER=0.1.1
 ARCH=arm64        # arm64 on Apple Silicon, amd64 on Intel
 BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
 
@@ -277,8 +277,8 @@ Releases are built by GitHub Actions with GoReleaser (`.goreleaser.yaml`).
 Pushing a `v*` tag builds, tests, and publishes the binaries and `checksums.txt`:
 
 ```sh
-git tag v0.1.1
-git push origin v0.1.1
+git tag v0.1.2
+git push origin v0.1.2
 gh run watch --workflow=release.yml
 ```
 

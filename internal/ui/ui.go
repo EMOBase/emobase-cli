@@ -22,7 +22,7 @@ var (
 	styleWarn  = lipgloss.NewStyle().Foreground(lipgloss.Color("11")).Bold(true)
 	styleInfo  = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
 	styleOK    = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
-	styleMuted = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	styleMuted = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "240", Dark: "250"})
 	styleBold  = lipgloss.NewStyle().Bold(true)
 )
 
