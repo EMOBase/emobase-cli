@@ -64,7 +64,7 @@ Each repository still owns its secrets and remains deployable on its own.`,
 	pf.StringVar(&a.WorkspaceFlag, "workspace", "", "directory containing the EMOBase checkouts (default: current directory or its parent)")
 	pf.BoolVar(&a.JSON, "json", false, "emit machine-readable JSON")
 	pf.BoolVar(&a.NoColor, "no-color", false, "disable ANSI colours")
-	pf.BoolVarP(&a.Yes, "yes", "y", false, "answer yes to prompts; enables choose-class fixes and destructive confirmations")
+	pf.BoolVarP(&a.Yes, "yes", "y", false, "answer yes to prompts and accept create defaults; enables choose-class fixes and destructive confirmations")
 
 	root.AddCommand(
 		a.doctorCmd(),

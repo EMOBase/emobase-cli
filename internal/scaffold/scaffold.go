@@ -16,6 +16,7 @@ import (
 // Runner executes commands, or prints them when DryRun is set.
 type Runner struct {
 	DryRun bool
+	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 }
@@ -37,6 +38,7 @@ func (r *Runner) Exec(dir, name string, args ...string) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	cmd.Stdin = r.Stdin
 	cmd.Stdout = r.Stdout
 	cmd.Stderr = r.Stderr
 	if err := cmd.Run(); err != nil {

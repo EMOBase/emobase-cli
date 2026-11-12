@@ -129,11 +129,14 @@ work/
 ```sh
 cd work
 
-# 1. Scaffold. Each command runs that repository's own init.sh.
-emobase create infra  --local
-emobase create portal --local
-emobase create species --species Tcas --local --clone --apply
-emobase create species --species Dmel --local --clone --http-port 9091
+# 1. Scaffold. Each command asks for its values and shows the repository
+#    default; press Enter to accept it.
+emobase create infra
+emobase create portal
+emobase create species       # the species code is required, for example Tcas
+
+# Add another species. It gets its own checkout, port and Directus database.
+emobase create species
 
 # 2. Validate and repair the cross-repository contract.
 emobase doctor
@@ -142,13 +145,23 @@ emobase doctor
 emobase bootstrap
 ```
 
+The species code has no default: you must type it, for example `Tcas`.
+
 `emobase` with no arguments prints a dashboard of the discovered workspace.
 `--workspace DIR` points at another directory; when run from inside a checkout,
 the parent directory is used automatically.
 
-For a server deployment, replace `--local` with the real URLs:
+Every question can also be answered by a flag, which is useful for automation.
+A value passed as a flag skips only that question. `--yes` accepts every
+default without prompting:
 
 ```sh
+# Local trial without questions.
+emobase --yes create infra --local
+emobase --yes create portal --local
+emobase --yes create species --species Tcas --local --clone --apply
+
+# Server deployment: answer only the URL questions.
 emobase create infra \
   --portal-server https://portal.example.org \
   --keycloak-public-url https://auth.example.org/keycloak
@@ -171,7 +184,7 @@ emobase create species --species Tcas \
 | `emobase species add ...` | Same as `emobase create species` |
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
 | `emobase species remove <ref> [--purge --yes]` | Show (or execute) teardown commands |
-| `emobase create infra\|portal\|species` | Run the repository's `init.sh` non-interactively |
+| `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
 | `emobase up [--only infra\|portal\|species] [--pull]` | Start in dependency order |
 | `emobase down [--only ...]` | Stop dependants first |
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
