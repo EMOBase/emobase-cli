@@ -103,19 +103,7 @@ func (a *App) dashboard(cmd *cobra.Command) error {
 	if a.JSON {
 		return a.writeJSON(out, ws, rep, nil)
 	}
-	fmt.Fprintln(out, title("EMOBase workspace"))
-	fmt.Fprintln(out, muted("  "+ws.Root))
-	fmt.Fprintln(out)
-	fmt.Fprint(out, stackOverview(ws))
-	fmt.Fprintln(out)
-	printSummary(out, rep)
-	if len(rep.Findings) > 0 {
-		fmt.Fprintln(out)
-		fmt.Fprintln(out, title("Findings"))
-		printFindings(out, rep)
-	}
-	fmt.Fprintln(out)
-	fmt.Fprintln(out, muted("Next: emobase doctor --fix   (safe fixes)   |   emobase status   |   emobase env matrix"))
+	fmt.Fprint(out, renderDashboard(ws, rep))
 	if rep.HasErrors() {
 		return ErrFindings
 	}

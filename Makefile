@@ -6,7 +6,7 @@ LDFLAGS := -s -w -X github.com/EMOBase/emobase-cli/internal/cli.version=$(VERSIO
 GOOS   ?= $(shell go env GOHOSTOS)
 GOARCH ?= $(shell go env GOHOSTARCH)
 
-.PHONY: all build cross build-linux install install-user test vet fmt tidy clean
+.PHONY: all build cross build-linux install install-user test vet fmt tidy clean preview preview-case preview-all
 
 all: build
 
@@ -46,6 +46,17 @@ fmt:
 
 tidy:
 	go mod tidy
+
+# Development-only UI case browser (not shipped in the release binary).
+preview:
+	go run ./cmd/preview list
+
+preview-case:
+	@test -n "$(CASE)" || (echo "usage: make preview-case CASE=doctor-findings" && exit 1)
+	go run ./cmd/preview $(CASE)
+
+preview-all:
+	go run ./cmd/preview --all
 
 clean:
 	rm -rf dist

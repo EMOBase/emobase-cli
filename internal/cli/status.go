@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/EMOBase/emobase-cli/internal/checks"
 	"github.com/EMOBase/emobase-cli/internal/keycloak"
 	"github.com/EMOBase/emobase-cli/internal/live"
-	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
 )
@@ -59,52 +57,11 @@ func (a *App) statusCmd() *cobra.Command {
 				}
 				return nil
 			}
-			fmt.Fprintln(out, title("Runtime status"))
-			fmt.Fprintln(out, muted("  "+ws.Root))
-			fmt.Fprintln(out)
-			var rows [][]string
-			for _, s := range sr.Stacks {
-				health := "ok"
-				switch {
-				case s.Total == 0:
-					health = "not created"
-				case s.Detail != "":
-					health = s.Detail
-				case s.Unhealthy > 0:
-					health = "unhealthy"
-				case s.Running < s.Total:
-					health = "partial"
-				}
-				rows = append(rows, []string{s.Role, s.Name, fmt.Sprintf("%d/%d", s.Running, s.Total), health, s.URL})
-			}
-			fmt.Fprint(out, ui.Table([]string{"role", "checkout", "containers", "health", "url"}, rows))
-
+			sr.Workspace = ws.Root
+			fmt.Fprint(out, renderStatus(sr))
 			if !sr.Docker {
-				fmt.Fprintln(out)
-				fmt.Fprintln(out, ui.Severity(checks.Error)+" Docker daemon is not reachable")
 				return ErrFindings
 			}
-			fmt.Fprintln(out)
-			netState := ui.OK("present")
-			if !sr.NetworkOK {
-				netState = ui.Severity(checks.Error) + " missing"
-			}
-			fmt.Fprintf(out, "  network %-28s %s\n", sr.Network, netState)
-			if sr.Databases != nil {
-				fmt.Fprintf(out, "  databases                    %v\n", sr.Databases)
-			}
-			for realm, ok := range sr.Realms {
-				state := ui.OK("reachable")
-				if !ok {
-					state = ui.Severity(checks.Error) + " unreachable"
-				}
-				fmt.Fprintf(out, "  realm %-26s %s\n", realm, state)
-			}
-			if sr.Portal != "" {
-				fmt.Fprintf(out, "  portal                       %s\n", sr.Portal)
-			}
-			fmt.Fprintln(out)
-			fmt.Fprintln(out, muted("Use emobase doctor --live for actionable checks."))
 			return nil
 		},
 	}

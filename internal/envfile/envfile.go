@@ -32,12 +32,18 @@ func Load(path string) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
+	return Parse(path, string(data)), nil
+}
+
+// Parse builds an in-memory file from dotenv content. Edits made to the result
+// are written to path by Save.
+func Parse(path, content string) *File {
 	f := &File{Path: path}
-	text := strings.ReplaceAll(string(data), "\r\n", "\n")
+	text := strings.ReplaceAll(content, "\r\n", "\n")
 	for _, raw := range strings.Split(text, "\n") {
 		f.entries = append(f.entries, parseLine(raw))
 	}
-	return f, nil
+	return f
 }
 
 func parseLine(raw string) entry {

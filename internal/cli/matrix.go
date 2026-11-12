@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
 )
@@ -50,11 +49,7 @@ stack whose value wins after "emobase doctor --fix".`,
 			if a.JSON {
 				return writeMatrixJSON(out, ws, headers, rows)
 			}
-			fmt.Fprintln(out, title("Shared environment"))
-			fmt.Fprintln(out)
-			fmt.Fprint(out, ui.Table(headers, rows))
-			fmt.Fprintln(out)
-			fmt.Fprintln(out, muted("emobase doctor --fix reconciles missing values; --fix --yes also resolves conflicts."))
+			fmt.Fprint(out, renderMatrix(headers, rows))
 			return nil
 		},
 	}

@@ -256,10 +256,26 @@ make fmt      # gofmt -w .
 make build
 ```
 
+### UI preview
+
+`cmd/preview` renders each UI case from fixtures, without a real workspace or
+Docker. It is a development tool and is not part of the release binary.
+
+```sh
+make preview                         # list every case
+make preview-case CASE=doctor-findings
+make preview-all                     # render every case
+```
+
+Flags: `--no-color`, `--all`, `--help`. Cases cover the dashboard, doctor,
+matrix, species list and runtime status, including empty, warning, conflict and
+Docker-unavailable states.
+
 Layout:
 
 ```
 cmd/emobase          entry point
+cmd/preview          dev-only UI case browser
 internal/envfile     comment-preserving dotenv parser/editor
 internal/workspace   signature-based checkout discovery
 internal/spec        required keys, shared-key authority, masking

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/EMOBase/emobase-cli/internal/checks"
-	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -56,21 +55,7 @@ are never applied automatically.`,
 				return nil
 			}
 
-			if fix {
-				fmt.Fprintln(out, title("Applied fixes"))
-				ui.Changes(out, applied)
-				fmt.Fprintln(out)
-			}
-			printSummary(out, rep)
-			if len(rep.Findings) > 0 {
-				fmt.Fprintln(out)
-				printFindings(out, rep)
-			}
-			if !a.Yes && hasChoose(rep) {
-				fmt.Fprintln(out)
-				fmt.Fprintln(out, muted("Some findings need a decision. Re-run with --fix --yes to accept emobase-infra's value,"))
-				fmt.Fprintln(out, muted("or edit the named .env by hand. Destructive issuer changes are never automatic."))
-			}
+			fmt.Fprint(out, renderDoctor(rep, applied, fix, a.Yes))
 			if rep.HasErrors() {
 				return ErrFindings
 			}

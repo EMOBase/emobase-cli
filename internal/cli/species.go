@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 
 	"github.com/EMOBase/emobase-cli/internal/scaffold"
 	"github.com/EMOBase/emobase-cli/internal/ui"
@@ -43,35 +42,13 @@ func (a *App) speciesListCmd() *cobra.Command {
 				return err
 			}
 			out := cmd.OutOrStdout()
-			rows := make([]speciesRow, 0, len(ws.Species))
-			for _, sp := range ws.Species {
-				get := func(k string) string {
-					if v, ok := sp.Get(k); ok {
-						return v
-					}
-					return ""
-				}
-				rows = append(rows, speciesRow{
-					Name: filepath.Base(sp.Dir), Species: get("MAIN_SPECIES"), Dir: sp.Dir,
-					URL: get("PUBLIC_SERVER"), Realm: get("KEYCLOAK_REALM"), Database: get("DIRECTUS_DB_DATABASE"),
-					Port: get("HTTP_PORT"), Project: sp.ProjectName, HasEnv: !sp.MissingEnv,
-				})
-			}
+			rows := speciesRows(ws)
 			if a.JSON {
 				enc := json.NewEncoder(out)
 				enc.SetIndent("", "  ")
 				return enc.Encode(rows)
 			}
-			if len(rows) == 0 {
-				fmt.Fprintln(out, "No species checkouts found.")
-				fmt.Fprintln(out, muted("Add one with: emobase species add --species Tcas --public-server https://tcas.example.org --clone"))
-				return nil
-			}
-			var table [][]string
-			for _, r := range rows {
-				table = append(table, []string{r.Species, filepath.Base(r.Dir), r.URL, r.Realm, r.Database, r.Port, r.Project})
-			}
-			fmt.Fprintln(out, ui.Table([]string{"species", "checkout", "url", "realm", "database", "port", "project"}, table))
+			fmt.Fprint(out, renderSpecies(rows))
 			return nil
 		},
 	}
