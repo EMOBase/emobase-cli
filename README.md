@@ -281,6 +281,13 @@ when infra is already running. A species can join the portal realm, join
 another species realm, or create a new independent realm. If infra is not
 running, `emobase up` or `emobase bootstrap` creates the realm later.
 
+Command-level details:
+
+- [Infra init reference](https://github.com/EMOBase/emobase-infra/blob/main/INIT.md)
+- [Portal init reference](https://github.com/EMOBase/emobase-portal-deploy/blob/main/INIT.md)
+- [Species init reference](https://github.com/EMOBase/emobase-deploy/blob/dev/INIT.md)
+- [Realm model](https://github.com/EMOBase/emobase-docs/blob/main/REALMS.md)
+
 ## Changing public URLs
 
 Use `emobase domain` after DNS and TLS work. It changes the browser-facing
