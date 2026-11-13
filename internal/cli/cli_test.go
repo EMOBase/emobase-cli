@@ -48,6 +48,7 @@ func matrixFixture(t *testing.T) string {
 	}, "\n"))
 	mkCLIStack(t, root, "emobase-portal-deploy", testPortalCompose, strings.Join([]string{
 		"PUBLIC_SERVER=http://localhost:9080",
+		"EMOBASE_GENOMICS_MYSQL__DATABASE=emobase_genomics",
 		"KEYCLOAK_REALM=ibb",
 		"KEYCLOAK_CLIENT_ID=ibb-client",
 		"KEYCLOAK_CLIENT_SECRET=super-secret",

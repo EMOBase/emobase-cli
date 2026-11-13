@@ -140,6 +140,11 @@ func (r *Runner) DropDatabase(infraDir, db string) error {
 	return r.Script(infraDir, "./scripts/drop-database.sh", "--yes", db)
 }
 
+// DeleteRealm removes a dedicated realm after prune confirmation.
+func (r *Runner) DeleteRealm(infraDir, realm string) error {
+	return r.Script(infraDir, "./scripts/delete-realm.sh", "--yes", realm)
+}
+
 // EnsureRealm creates or updates a realm and adds an origin. It keeps an
 // existing seed-user password.
 func (r *Runner) EnsureRealm(infraDir, realm, origin, clientID, clientSecret, cocoUser, cocoPassword string) error {

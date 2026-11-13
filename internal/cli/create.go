@@ -104,7 +104,17 @@ func (a *App) createInfraCmd() *cobra.Command {
 			add("--keycloak-public-url", o.keycloakURL)
 			add("--keycloak-host-port", o.keycloakPort)
 			add("--infra-network", o.network)
-			return r.Init(o.dir, initArgs...)
+			if err := r.Init(o.dir, initArgs...); err != nil {
+				return err
+			}
+			if !o.dryRun {
+				if ws, err := workspace.Discover(root); err == nil && ws.Infra != nil {
+					if err := updateStackLedger(ws, ws.Infra, nil); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
 		},
 	}
 	f := cmd.Flags()
@@ -196,6 +206,9 @@ func (a *App) createPortalCmd() *cobra.Command {
 			if ws.Portal == nil || ws.Portal.MissingEnv {
 				return fmt.Errorf(".env created, but %s was not recognised as a portal checkout", o.dir)
 			}
+			if err := updateStackLedger(ws, ws.Portal, nil); err != nil {
+				return err
+			}
 			origin, _ := ws.Portal.Get("PUBLIC_SERVER")
 			if origin == "" {
 				return fmt.Errorf("%s has no PUBLIC_SERVER", ws.Portal.EnvPath)
@@ -206,8 +219,14 @@ func (a *App) createPortalCmd() *cobra.Command {
 				if err := ensurePortalDatabase(r, ws, ws.Portal); err != nil {
 					return err
 				}
+				if err := markDatabaseCreated(ws, ws.Portal, true); err != nil {
+					return err
+				}
 				fmt.Fprintln(cmd.OutOrStdout(), title("Keycloak realm"))
 				if err := ensureStackRealm(cmd.Context(), r, ws, ws.Portal); err != nil {
+					return err
+				}
+				if err := markRealmCreated(ws, ws.Portal, true); err != nil {
 					return err
 				}
 			} else {
@@ -377,6 +396,9 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 	if sp == nil {
 		return fmt.Errorf(".env created, but %s was not recognised as a species checkout", o.dir)
 	}
+	if err := updateStackLedger(ws, sp, nil); err != nil {
+		return err
+	}
 	infraUp := infraReady(cmd.Context(), ws)
 	if !o.apply && !a.Yes && canPrompt(cmd.InOrStdin()) && infraUp {
 		o.apply, err = promptConfirm(cmd, "Set up the species now (database, Keycloak origin, Directus, start)?", false)
@@ -388,6 +410,9 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 		if keycloakRunning(cmd.Context(), ws) {
 			fmt.Fprintln(cmd.OutOrStdout(), title("Keycloak realm"))
 			if err := ensureStackRealm(cmd.Context(), r, ws, sp); err != nil {
+				return err
+			}
+			if err := markRealmCreated(ws, sp, true); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout())
@@ -418,14 +443,29 @@ func (a *App) setupSpecies(cmd *cobra.Command, ws *workspace.Workspace, sp *work
 	if db == "" {
 		return fmt.Errorf("%s has no DIRECTUS_DB_DATABASE; run emobase doctor --fix first", sp.EnvPath)
 	}
+	if !r.DryRun {
+		if err := updateStackLedger(ws, sp, nil); err != nil {
+			return err
+		}
+	}
 	fmt.Fprintln(out, title("Database"))
 	if err := r.CreateDatabase(ws.Infra.Dir, db); err != nil {
 		return err
+	}
+	if !r.DryRun {
+		if err := markDatabaseCreated(ws, sp, true); err != nil {
+			return err
+		}
 	}
 	origin, _ := sp.Get("PUBLIC_SERVER")
 	fmt.Fprintln(out, title("Keycloak realm"))
 	if err := ensureStackRealm(cmd.Context(), r, ws, sp); err != nil {
 		return err
+	}
+	if !r.DryRun {
+		if err := markRealmCreated(ws, sp, true); err != nil {
+			return err
+		}
 	}
 	fmt.Fprintln(out, title("Directus"))
 	if err := r.SetupDirectus(sp.Dir); err != nil {
@@ -434,6 +474,11 @@ func (a *App) setupSpecies(cmd *cobra.Command, ws *workspace.Workspace, sp *work
 	fmt.Fprintln(out, title("Start"))
 	if err := r.Up(sp.Dir); err != nil {
 		return err
+	}
+	if !r.DryRun {
+		if err := markStackStatus(ws, sp, "active"); err != nil {
+			return err
+		}
 	}
 	fmt.Fprintln(out)
 	state := "is running"

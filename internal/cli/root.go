@@ -77,6 +77,8 @@ Each repository still owns its secrets and remains deployable on its own.`,
 		a.downCmd(),
 		a.updateCmd(),
 		a.bootstrapCmd(),
+		a.syncCmd(),
+		a.pruneCmd(),
 	)
 	return root
 }

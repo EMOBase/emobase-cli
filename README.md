@@ -321,6 +321,40 @@ The command does not configure DNS, TLS, or the reverse proxy, and it refuses
 to apply changes while Keycloak is down. Old realm origins are left in place;
 remove them in the Keycloak admin console if the cutover is permanent.
 
+## Ownership ledger
+
+The CLI records which external resources it created in:
+
+```text
+<workspace>/.emobase/state.json
+```
+
+This is not a copy of `.env`. It records ownership: which database and realm
+belong to which checkout. It contains no secrets and is specific to one
+workspace/server, so do not commit it.
+
+- `create` records the stack with its resource names but `created: false`.
+- `species setup` and `bootstrap` mark resources created after success.
+- `species remove --purge` uses the ledger. If a resource was never created, it
+  does not require MySQL or Keycloak. If cleanup cannot run, it marks the entry
+  `pending_cleanup`.
+- `emobase prune` removes databases and dedicated realms recorded in the
+  ledger for removed checkouts. It never guesses from names and never touches
+  resources that are not recorded.
+- Shared realms are skipped while any active checkout still uses them.
+
+Example:
+
+```sh
+emobase sync                 # create missing databases/realms for active stacks
+emobase sync --dry-run
+emobase prune                # show state-owned cleanup
+emobase prune --yes          # execute it
+```
+
+`sync` does not start containers. `bootstrap` syncs and starts, but never
+prunes.
+
 ## Commands
 
 | Command | What it does |
@@ -335,13 +369,15 @@ remove them in the Keycloak admin console if the cutover is permanent.
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
 | `emobase species remove <ref> [--purge --yes]` | Show (or execute) teardown commands |
 | `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
+| `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
+| `emobase prune [--yes]` | Remove state-owned resources left by deleted stacks |
 | `emobase up [--only infra\|portal\|species] [--pull]` | Start in dependency order |
 | `emobase down [--only ...]` | Stop dependants first |
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
 | `emobase bootstrap [--only ...] [--dry-run]` | Full ordered bring-up from existing `.env` files |
 
-Use `--dry-run` on `create`, `up`, `down`, `update` and `bootstrap` to print
-every command instead of running it. `--no-color`, `NO_COLOR` and `--json` are
+Use `--dry-run` on `create`, `sync`, `up`, `down`, `update` and `bootstrap` to
+print every command instead of running it. `--no-color`, `NO_COLOR` and `--json` are
 global.
 
 ## What `doctor` checks
@@ -360,6 +396,7 @@ global.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - Every checkout using the same realm uses the same client ID and secret.
 - `COMPOSE_PROJECT_NAME` is set and unique.
+- The ownership ledger matches active stacks and their database/realm names.
 - No `change-me` placeholders remain.
 
 `--live` additionally checks the Docker daemon, the shared network, container

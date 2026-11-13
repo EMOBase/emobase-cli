@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/EMOBase/emobase-cli/internal/scaffold"
+	"github.com/EMOBase/emobase-cli/internal/state"
 	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
@@ -110,17 +111,64 @@ checkout directory is never deleted by this command.`,
 			if !a.Yes {
 				return fmt.Errorf("refusing to destroy %s without --yes", sp.Name)
 			}
-			if ws.Infra != nil && db != "" && !infraServiceRunning(cmd.Context(), ws, "mysql") {
-				return fmt.Errorf("infra MySQL is not running; start it first with: emobase up --only infra")
+			ledger, err := state.Load(ws.Root)
+			if err != nil {
+				return err
 			}
+			key := stackKey(sp)
+			entry := ledger.Stacks[key]
+			legacy := entry == nil
+			if legacy {
+				entry = ledger.Entry(key)
+				syncStackLedger(ws.Root, ws, sp, entry)
+				// Without a ledger entry we cannot prove the resource was never
+				// created. Adopt it so a later prune can clean it up safely.
+				if entry.Database != nil {
+					entry.Database.Created = true
+				}
+				if entry.Realm != nil && entry.Realm.Owner == key {
+					entry.Realm.Created = true
+				}
+			}
+			if db == "" && entry.Database != nil {
+				db = entry.Database.Name
+			}
+			dbCreated := entry.Database != nil && entry.Database.Created
+			realmOwned := entry.Realm != nil && entry.Realm.Created && entry.Realm.Owner == key
+
 			r := &scaffold.Runner{Stdout: out, Stderr: cmd.ErrOrStderr()}
 			if err := r.Destroy(sp.Dir); err != nil {
 				return err
 			}
-			if ws.Infra != nil && db != "" {
-				if err := r.DropDatabase(ws.Infra.Dir, db); err != nil {
+
+			pending := false
+			if db != "" && dbCreated {
+				if ws.Infra == nil || !infraServiceRunning(cmd.Context(), ws, "mysql") {
+					pending = true
+					fmt.Fprintln(out, muted("Database cleanup deferred: infra MySQL is not running."))
+				} else if err := r.DropDatabase(ws.Infra.Dir, db); err != nil {
+					pending = true
+					fmt.Fprintln(out, muted("Database cleanup deferred: "+err.Error()))
+				} else if entry.Database != nil {
+					entry.Database.Created = false
+				}
+			}
+			if realmOwned && entry.Realm != nil && entry.Realm.Mode == "dedicated" {
+				pending = true
+				fmt.Fprintln(out, muted("Dedicated realm cleanup deferred to emobase prune."))
+			}
+
+			if pending {
+				entry.Status = "pending_cleanup"
+				if err := ledger.Save(ws.Root); err != nil {
 					return err
 				}
+				fmt.Fprintf(out, "%s stopped %s; cleanup is pending. Run: emobase prune\n", ui.OK("OK"), sp.Name)
+				return nil
+			}
+			ledger.Delete(key)
+			if err := ledger.Save(ws.Root); err != nil {
+				return err
 			}
 			fmt.Fprintf(out, "%s stopped %s; the directory %s was kept\n", ui.OK("OK"), sp.Name, sp.Dir)
 			return nil

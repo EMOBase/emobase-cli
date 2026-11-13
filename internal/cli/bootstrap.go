@@ -87,6 +87,11 @@ Use --dry-run to print the exact commands without running them.`,
 				if err := ensurePortalDatabase(r, ws, ws.Portal); err != nil {
 					return err
 				}
+				if !dryRun {
+					if err := markDatabaseCreated(ws, ws.Portal, true); err != nil {
+						return err
+					}
+				}
 				if !skipSetup {
 					if err := r.SetupJBrowse2(ws.Portal.Dir); err != nil {
 						return err
@@ -99,6 +104,11 @@ Use --dry-run to print the exact commands without running them.`,
 				}
 				if err := ensureStackRealm(cmd.Context(), r, ws, ws.Portal); err != nil {
 					return err
+				}
+				if !dryRun {
+					if err := markRealmCreated(ws, ws.Portal, true); err != nil {
+						return err
+					}
 				}
 				if err := r.Up(ws.Portal.Dir); err != nil {
 					return err

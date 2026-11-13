@@ -29,6 +29,7 @@ are never applied automatically.`,
 				return err
 			}
 			rep := runChecks(ws, withLive, cmd)
+			addStateFindings(ws, rep)
 			out := cmd.OutOrStdout()
 
 			var applied []checks.Change
@@ -41,6 +42,7 @@ are never applied automatically.`,
 					if reloaded, rerr := a.Workspace(); rerr == nil {
 						ws = reloaded
 						rep = runChecks(ws, withLive, cmd)
+						addStateFindings(ws, rep)
 					}
 				}
 			}
