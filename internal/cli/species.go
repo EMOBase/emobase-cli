@@ -110,6 +110,9 @@ checkout directory is never deleted by this command.`,
 			if !a.Yes {
 				return fmt.Errorf("refusing to destroy %s without --yes", sp.Name)
 			}
+			if ws.Infra != nil && db != "" && !infraServiceRunning(cmd.Context(), ws, "mysql") {
+				return fmt.Errorf("infra MySQL is not running; start it first with: emobase up --only infra")
+			}
 			r := &scaffold.Runner{Stdout: out, Stderr: cmd.ErrOrStderr()}
 			if err := r.Destroy(sp.Dir); err != nil {
 				return err
