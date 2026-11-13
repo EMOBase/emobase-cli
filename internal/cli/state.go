@@ -134,12 +134,23 @@ func markStackStatus(ws *workspace.Workspace, st *workspace.Stack, status string
 	return updateStackLedger(ws, st, func(e *state.Stack) { e.Status = status })
 }
 
+func stateRecordHint(st *workspace.Stack) string {
+	switch st.Role {
+	case workspace.RolePortal:
+		return "run `emobase sync` to record the portal database and realm"
+	case workspace.RoleSpecies:
+		return fmt.Sprintf("run `emobase species setup %s` or `emobase sync` to record it", st.Name)
+	default:
+		return "run `emobase sync` to record it"
+	}
+}
+
 func addStateFindings(ws *workspace.Workspace, rep *checks.Report) {
 	_, err := os.Stat(state.Path(ws.Root))
 	if os.IsNotExist(err) {
 		rep.Add(checks.Advisory("state.missing", "workspace", checks.Warn,
 			"workspace ownership ledger not found",
-			"run `emobase bootstrap` or `emobase species setup` to record created resources"))
+			"run `emobase sync` to record existing resources, or `emobase bootstrap` for a full bring-up"))
 		return
 	}
 	if err != nil {
@@ -155,12 +166,16 @@ func addStateFindings(ws *workspace.Workspace, rep *checks.Report) {
 	}
 	active := append([]*workspace.Stack{}, ws.All()...)
 	for _, st := range active {
+		// Infra owns no database or realm, so it needs no ownership entry.
+		if st.Role == workspace.RoleInfra {
+			continue
+		}
 		key := stackKey(st)
 		entry := ledger.Stacks[key]
 		if entry == nil || entry.Status == "pending_cleanup" {
 			rep.Add(checks.Advisory("state.unrecorded", checks.ScopeOf(st), checks.Warn,
 				fmt.Sprintf("%s is not recorded as active in .emobase/state.json", st.Name),
-				"run `emobase bootstrap` or `emobase species setup`"))
+				stateRecordHint(st)))
 			continue
 		}
 		if db := stackDatabase(st); db != "" && entry.Database != nil && entry.Database.Name != db {

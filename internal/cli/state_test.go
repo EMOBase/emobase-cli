@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/EMOBase/emobase-cli/internal/checks"
 	"github.com/EMOBase/emobase-cli/internal/state"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 )
@@ -43,6 +45,44 @@ func TestStackLedgerTracksResources(t *testing.T) {
 	portal = ledger.Stacks["portal"]
 	if !portal.Database.Created || !portal.Realm.Created {
 		t.Fatalf("created flags = %#v", portal)
+	}
+}
+
+func TestStateFindingsHintMatchesRole(t *testing.T) {
+	root := matrixFixture(t)
+	ws, err := workspace.Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (&state.File{}).Save(root); err != nil {
+		t.Fatal(err)
+	}
+	var rep checks.Report
+	addStateFindings(ws, &rep)
+
+	portalSeen, speciesSeen := false, false
+	for _, f := range rep.Findings {
+		if f.Scope == "infra" {
+			t.Fatalf("infra needs no ownership entry, got finding: %#v", f)
+		}
+		if f.Scope == "portal" {
+			portalSeen = true
+			if strings.Contains(f.Hint, "species setup") {
+				t.Fatalf("portal hint suggests species setup: %q", f.Hint)
+			}
+			if !strings.Contains(f.Hint, "emobase sync") {
+				t.Fatalf("portal hint does not suggest sync: %q", f.Hint)
+			}
+		}
+		if strings.HasPrefix(f.Scope, "species:") {
+			speciesSeen = true
+			if !strings.Contains(f.Hint, "species setup") {
+				t.Fatalf("species hint does not suggest species setup: %q", f.Hint)
+			}
+		}
+	}
+	if !portalSeen || !speciesSeen {
+		t.Fatalf("missing findings: portal=%v species=%v", portalSeen, speciesSeen)
 	}
 }
 
