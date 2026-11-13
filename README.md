@@ -31,7 +31,8 @@ Every push to `main` publishes a `latest` release with stable asset names. It
 changes with each commit, so use a tagged release for production
 reproducibility. `emobase --version` reports `main-<commit>`.
 
-Each block downloads into a temporary directory and removes it automatically.
+Each block downloads into a temporary directory and removes it automatically,
+so only `/usr/local/bin/emobase` remains after installation.
 
 #### Linux server
 
@@ -54,8 +55,7 @@ Each block downloads into a temporary directory and removes it automatically.
   grep "linux_${ARCH}" checksums.txt | sha256sum -c -
   tar -xzf "emobase_linux_${ARCH}.tar.gz" emobase
   sudo install -m 0755 emobase /usr/local/bin/emobase
-)
-emobase --version
+) && emobase --version
 ```
 
 #### macOS
@@ -79,8 +79,7 @@ emobase --version
   grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
   tar -xzf "emobase_darwin_${ARCH}.tar.gz" emobase
   sudo install -m 0755 emobase /usr/local/bin/emobase
-)
-emobase --version
+) && emobase --version
 ```
 
 ### Tagged release (pinned)
@@ -94,7 +93,7 @@ emobase --version
   trap 'rm -rf "$tmp"' EXIT
   cd "$tmp"
 
-  VER=0.1.1
+  VER=0.1.2
   case "$(uname -m)" in
     x86_64) ARCH=amd64 ;;
     aarch64|arm64) ARCH=arm64 ;;
@@ -107,8 +106,7 @@ emobase --version
   grep "linux_${ARCH}" checksums.txt | sha256sum -c -
   tar -xzf "emobase_${VER}_linux_${ARCH}.tar.gz" emobase
   sudo install -m 0755 emobase /usr/local/bin/emobase
-)
-emobase --version
+) && emobase --version
 ```
 
 #### macOS
@@ -120,7 +118,7 @@ emobase --version
   trap 'rm -rf "$tmp"' EXIT
   cd "$tmp"
 
-  VER=0.1.1
+  VER=0.1.2
   case "$(uname -m)" in
     x86_64) ARCH=amd64 ;;
     arm64) ARCH=arm64 ;;
@@ -133,9 +131,20 @@ emobase --version
   grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
   tar -xzf "emobase_${VER}_darwin_${ARCH}.tar.gz" emobase
   sudo install -m 0755 emobase /usr/local/bin/emobase
-)
-emobase --version
+) && emobase --version
 ```
+
+If you installed with the older instructions, remove the files left in your
+home directory:
+
+```sh
+rm -f ~/emobase_linux_*.tar.gz ~/emobase_darwin_*.tar.gz ~/checksums.txt
+rm -f ~/emobase
+```
+
+The extracted `~/emobase` is the downloaded binary; the installed copy is still
+`/usr/local/bin/emobase`. Do not remove your `emobase-infra` or other checkout
+directories.
 
 To install for one user instead, replace the `sudo install ...` line inside the
 temporary-directory block with:
