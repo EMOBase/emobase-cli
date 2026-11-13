@@ -10,9 +10,8 @@ import (
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 )
 
-// keycloakRunning reports whether the infra Keycloak container is up. Realm
-// creation uses kcadm inside that container, so it cannot run before infra.
-func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
+// infraServiceRunning reports whether one infra Compose service is up.
+func infraServiceRunning(ctx context.Context, ws *workspace.Workspace, service string) bool {
 	if ws.Infra == nil || ws.Infra.MissingEnv || !live.DockerAvailable(ctx) {
 		return false
 	}
@@ -21,7 +20,7 @@ func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
 		return false
 	}
 	for _, c := range containers {
-		if c.Service != "keycloak" {
+		if c.Service != service {
 			continue
 		}
 		state := c.State
@@ -31,6 +30,17 @@ func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
 		return isRunning(state, c.Status)
 	}
 	return false
+}
+
+// keycloakRunning reports whether the infra Keycloak container is up. Realm
+// creation uses kcadm inside that container, so it cannot run before infra.
+func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
+	return infraServiceRunning(ctx, ws, "keycloak")
+}
+
+// infraReady reports whether both services needed by species setup are up.
+func infraReady(ctx context.Context, ws *workspace.Workspace) bool {
+	return infraServiceRunning(ctx, ws, "mysql") && infraServiceRunning(ctx, ws, "keycloak")
 }
 
 // stackRealm returns the realm and client credentials owned by a stack.

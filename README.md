@@ -245,6 +245,10 @@ emobase bootstrap
 
 The species code has no default: you must type it, for example `Tcas`.
 
+`create` only writes `.env` files; it does not start containers. The species
+setup prompt appears only when infra is running. Use `emobase bootstrap` to
+start everything, or `emobase up --only infra` before running setup.
+
 `emobase` with no arguments prints a dashboard of the discovered workspace.
 `--workspace DIR` points at another directory; when run from inside a checkout,
 the parent directory is used automatically.
