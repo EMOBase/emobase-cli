@@ -25,7 +25,17 @@ type Runner struct {
 func (r *Runner) Exec(dir, name string, args ...string) error {
 	parts := make([]string, 0, len(args)+1)
 	parts = append(parts, quoteArg(name))
+	redact := false
 	for _, a := range args {
+		if redact {
+			parts = append(parts, "********")
+			redact = false
+			continue
+		}
+		switch a {
+		case "--client-secret", "--coco-password", "--keycloak-client-secret", "--password":
+			redact = true
+		}
 		parts = append(parts, quoteArg(a))
 	}
 	line := fmt.Sprintf("cd %s && %s", quoteArg(dir), strings.Join(parts, " "))
@@ -129,13 +139,9 @@ func (r *Runner) DropDatabase(infraDir, db string) error {
 	return r.Script(infraDir, "./scripts/drop-database.sh", db)
 }
 
-// EnsureSharedRealm creates the shared realm if needed and allows one origin.
-func (r *Runner) EnsureSharedRealm(infraDir, origin string) error {
-	return r.Script(infraDir, "./scripts/ensure-shared-realm.sh", origin)
-}
-
-// EnsureDedicatedRealm creates a dedicated realm if needed and adds an origin.
-func (r *Runner) EnsureDedicatedRealm(infraDir, realm, origin, clientID, clientSecret, cocoUser, cocoPassword string) error {
+// EnsureRealm creates or updates a realm and adds an origin. It keeps an
+// existing seed-user password.
+func (r *Runner) EnsureRealm(infraDir, realm, origin, clientID, clientSecret, cocoUser, cocoPassword string) error {
 	return r.Script(infraDir, "./scripts/create-realm.sh",
 		"--realm", realm,
 		"--origin", origin,
@@ -146,11 +152,6 @@ func (r *Runner) EnsureDedicatedRealm(infraDir, realm, origin, clientID, clientS
 		"--keep-password",
 		"--quiet",
 	)
-}
-
-// AllowOrigin registers another shared-realm origin with Keycloak.
-func (r *Runner) AllowOrigin(infraDir, origin string) error {
-	return r.Script(infraDir, "./scripts/allow-origin.sh", origin)
 }
 
 // Clone clones a repository into dir when it is missing.

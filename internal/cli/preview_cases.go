@@ -10,17 +10,12 @@ import (
 
 const previewRoot = "/srv/emobase"
 
-const infraEnv = `KEYCLOAK_REALM=ibb
-KEYCLOAK_CLIENT_ID=emobase-portal
-KEYCLOAK_CLIENT_SECRET=infra-secret
-MYSQL_ROOT_PASSWORD=root-secret
+const infraEnv = `MYSQL_ROOT_PASSWORD=root-secret
 KEYCLOAK_PUBLIC_URL=https://auth.example.org/keycloak
 KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak
 KEYCLOAK_HOST_PORT=8081
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=admin-secret
-COCO_USERNAME=coco
-COCO_PASSWORD=coco-secret
 EMOBASE_INFRA_NETWORK=emobase-infra
 `
 
@@ -34,9 +29,11 @@ EMOBASE_GENOMICS_MYSQL__DATABASE=emobase_genomics
 AUTH_SECRET=portal-auth-secret
 EMOBASE_GENOMICS_IMAGE=ghcr.io/emobase/genomics:latest
 EMOBASE_PORTAL_WEB_IMAGE=ghcr.io/emobase/portal-web:latest
-KEYCLOAK_REALM=ibb
-KEYCLOAK_CLIENT_ID=emobase-portal
-KEYCLOAK_CLIENT_SECRET=infra-secret
+KEYCLOAK_REALM=emobase-portal
+KEYCLOAK_CLIENT_ID=emobase-portal-client
+KEYCLOAK_CLIENT_SECRET=portal-secret
+COCO_USERNAME=coco
+COCO_PASSWORD=coco-secret
 MYSQL_ROOT_PASSWORD=root-secret
 KEYCLOAK_PUBLIC_URL=https://auth.example.org/keycloak
 KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak
@@ -57,16 +54,17 @@ COCO_PASSWORD=coco-secret
 EMOBASE_WEB_IMAGE=ghcr.io/emobase/web:latest
 SSR_OIDC_SESSION_SECRET=ssr-tcas-secret
 INTERNAL_API_GENOMICS_SERVICE=http://genomicsservice:8000
-INTERNAL_KEYCLOAK_ISSUER=http://keycloak:8080/keycloak/realms/ibb_tcas
+INTERNAL_KEYCLOAK_ISSUER=http://keycloak:8080/keycloak/realms/emobase-portal
 INTERNAL_DIRECTUS_URL=http://directus:8055
 PUBLIC_DATA_DIR=/srv/emobase/tcas/public
 PRIVATE_DATA_DIR=/srv/emobase/tcas/private
 IMAGE_DIR=/srv/emobase/tcas/images
 UID=1000
 GID=1000
-KEYCLOAK_REALM=ibb_tcas
-KEYCLOAK_CLIENT_ID=emobase-tcas
-KEYCLOAK_CLIENT_SECRET=tcas-secret
+KEYCLOAK_REALM=emobase-portal
+KEYCLOAK_REALM_MODE=joined
+KEYCLOAK_CLIENT_ID=emobase-portal-client
+KEYCLOAK_CLIENT_SECRET=portal-secret
 MYSQL_ROOT_PASSWORD=root-secret
 KEYCLOAK_PUBLIC_URL=https://auth.example.org/keycloak
 KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak
@@ -118,10 +116,11 @@ func conflictWorkspace() *workspace.Workspace {
 	dmel := previewStack(workspace.RoleSpecies, "emobase-deploy-dmel", tcasEnv, "tcas")
 	dmel.Env.Set("MAIN_SPECIES", "Dmel")
 	dmel.Env.Set("PUBLIC_SERVER", "https://dmel.example.org")
-	dmel.Env.Set("KEYCLOAK_REALM", "ibb_dmel")
-	dmel.Env.Set("KEYCLOAK_CLIENT_ID", "emobase-dmel")
+	dmel.Env.Set("KEYCLOAK_REALM", "emobase-dmel")
+	dmel.Env.Set("KEYCLOAK_REALM_MODE", "dedicated")
+	dmel.Env.Set("KEYCLOAK_CLIENT_ID", "emobase-dmel-client")
 	dmel.Env.Set("KEYCLOAK_CLIENT_SECRET", "dmel-secret")
-	dmel.Env.Set("INTERNAL_KEYCLOAK_ISSUER", "http://keycloak:8080/keycloak/realms/ibb_dmel")
+	dmel.Env.Set("INTERNAL_KEYCLOAK_ISSUER", "http://keycloak:8080/keycloak/realms/emobase-dmel")
 	dmel.Env.Set("DIRECTUS_DB_DATABASE", "directus_tcas")
 	dmel.Env.Set("HTTP_PORT", "9090")
 	dmel.Env.Set("COMPOSE_PROJECT_NAME", "tcas")

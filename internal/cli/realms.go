@@ -33,36 +33,54 @@ func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
 	return false
 }
 
-// sharedRealmOrigin returns a stack's origin when it uses infra's shared
-// realm. Dedicated realms are created by the species init.sh instead.
-func sharedRealmOrigin(ws *workspace.Workspace, st *workspace.Stack) (string, bool) {
-	if ws.Infra == nil || st == nil || st.MissingEnv {
-		return "", false
+// stackRealm returns the realm and client credentials owned by a stack.
+func stackRealm(st *workspace.Stack) (realm, clientID, clientSecret, cocoUser, cocoPass string, ok bool) {
+	if st == nil || st.MissingEnv {
+		return "", "", "", "", "", false
 	}
-	infraRealm, _ := ws.Infra.Get("KEYCLOAK_REALM")
-	if infraRealm == "" {
-		infraRealm = "ibb"
+	realm, _ = st.Get("KEYCLOAK_REALM")
+	clientID, _ = st.Get("KEYCLOAK_CLIENT_ID")
+	clientSecret, _ = st.Get("KEYCLOAK_CLIENT_SECRET")
+	cocoUser, _ = st.Get("COCO_USERNAME")
+	cocoPass, _ = st.Get("COCO_PASSWORD")
+	if strings.TrimSpace(realm) == "" || strings.TrimSpace(clientID) == "" || strings.TrimSpace(clientSecret) == "" {
+		return "", "", "", "", "", false
 	}
-	realm, _ := st.Get("KEYCLOAK_REALM")
-	origin, _ := st.Get("PUBLIC_SERVER")
-	if realm != infraRealm || strings.TrimSpace(origin) == "" {
-		return "", false
+	if cocoUser == "" {
+		cocoUser = "coco"
 	}
-	return origin, true
+	return realm, clientID, clientSecret, cocoUser, cocoPass, true
 }
 
-// ensureStackRealm creates the shared realm before a portal or shared-realm
-// species is started. The operation is idempotent.
+// ensurePortalDatabase creates the portal's MySQL database. Infra no longer
+// creates application databases.
+func ensurePortalDatabase(r *scaffold.Runner, ws *workspace.Workspace, st *workspace.Stack) error {
+	if ws.Infra == nil {
+		return fmt.Errorf("no emobase-infra checkout found")
+	}
+	db, _ := st.Get("EMOBASE_GENOMICS_MYSQL__DATABASE")
+	if strings.TrimSpace(db) == "" {
+		return fmt.Errorf("%s has no EMOBASE_GENOMICS_MYSQL__DATABASE", st.Name)
+	}
+	return r.CreateDatabase(ws.Infra.Dir, db)
+}
+
+// ensureStackRealm creates or updates the stack's own realm and origin. The
+// operation is idempotent and never rotates an existing seed password.
 func ensureStackRealm(ctx context.Context, r *scaffold.Runner, ws *workspace.Workspace, st *workspace.Stack) error {
 	if st == nil || st.Role == workspace.RoleInfra {
 		return nil
 	}
-	origin, ok := sharedRealmOrigin(ws, st)
+	realm, clientID, clientSecret, cocoUser, cocoPass, ok := stackRealm(st)
 	if !ok {
-		return nil
+		return fmt.Errorf("%s has no realm client credentials; run its init.sh first", st.Name)
+	}
+	origin, _ := st.Get("PUBLIC_SERVER")
+	if strings.TrimSpace(origin) == "" {
+		return fmt.Errorf("%s has no PUBLIC_SERVER", st.Name)
 	}
 	if !r.DryRun && !keycloakRunning(ctx, ws) {
 		return fmt.Errorf("Keycloak is not running; start infra first with: emobase up --only infra")
 	}
-	return r.EnsureSharedRealm(ws.Infra.Dir, origin)
+	return r.EnsureRealm(ws.Infra.Dir, realm, origin, clientID, clientSecret, cocoUser, cocoPass)
 }

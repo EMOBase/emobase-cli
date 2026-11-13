@@ -20,8 +20,6 @@ type SharedKey struct {
 	Key       string
 	Authority Authority
 	Secret    bool
-	// RealmScoped keys only apply to a species that reuses the shared realm.
-	RealmScoped bool
 }
 
 // SharedToInfra are copied from emobase-infra into the portal and species.
@@ -32,22 +30,12 @@ var SharedToInfra = []SharedKey{
 	{Key: "EMOBASE_INFRA_NETWORK", Authority: AuthorityInfra},
 }
 
-// RealmKeys are shared between infra and every stack that uses the shared
-// realm. A dedicated species realm owns its own values.
-var RealmKeys = []SharedKey{
-	{Key: "KEYCLOAK_REALM", Authority: AuthorityInfra},
-	{Key: "KEYCLOAK_CLIENT_ID", Authority: AuthorityInfra},
-	{Key: "KEYCLOAK_CLIENT_SECRET", Authority: AuthorityInfra, Secret: true},
-}
-
 // RequiredInfra is the minimum set for a working shared infrastructure stack.
 // Shared keys are checked separately, so they are excluded here.
 var RequiredInfra = []string{
 	"KEYCLOAK_HOST_PORT",
 	"KEYCLOAK_ADMIN",
 	"KEYCLOAK_ADMIN_PASSWORD",
-	"COCO_USERNAME",
-	"COCO_PASSWORD",
 }
 
 // RequiredPortal is the minimum set for the portal stack.
@@ -62,6 +50,11 @@ var RequiredPortal = []string{
 	"AUTH_SECRET",
 	"EMOBASE_GENOMICS_IMAGE",
 	"EMOBASE_PORTAL_WEB_IMAGE",
+	"KEYCLOAK_REALM",
+	"KEYCLOAK_CLIENT_ID",
+	"KEYCLOAK_CLIENT_SECRET",
+	"COCO_USERNAME",
+	"COCO_PASSWORD",
 }
 
 // RequiredSpecies is the minimum set for a species stack. It mirrors what
@@ -77,6 +70,10 @@ var RequiredSpecies = []string{
 	"DIRECTUS_ADMIN_PASSWORD",
 	"COCO_USERNAME",
 	"COCO_PASSWORD",
+	"KEYCLOAK_REALM",
+	"KEYCLOAK_REALM_MODE",
+	"KEYCLOAK_CLIENT_ID",
+	"KEYCLOAK_CLIENT_SECRET",
 	"EMOBASE_WEB_IMAGE",
 	"SSR_OIDC_SESSION_SECRET",
 	"INTERNAL_API_GENOMICS_SERVICE",
@@ -146,12 +143,6 @@ func Mask(v string) string {
 func Lookup(key string) (SharedKey, bool) {
 	for _, k := range SharedToInfra {
 		if k.Key == key {
-			return k, true
-		}
-	}
-	for _, k := range RealmKeys {
-		if k.Key == key {
-			k.RealmScoped = true
 			return k, true
 		}
 	}

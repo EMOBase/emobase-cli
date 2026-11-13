@@ -43,7 +43,6 @@ type domainOrigin struct {
 	Scope  string
 	Realm  string
 	Origin string
-	Shared bool
 }
 
 type domainPlan struct {
@@ -298,10 +297,6 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 		return nil, fmt.Errorf("no emobase-infra checkout found")
 	}
 	plan := &domainPlan{}
-	infraRealm, _ := ws.Infra.Get("KEYCLOAK_REALM")
-	if infraRealm == "" {
-		infraRealm = "ibb"
-	}
 	hostPort, _ := ws.Infra.Get("KEYCLOAK_HOST_PORT")
 	if hostPort == "" {
 		hostPort = "8081"
@@ -353,9 +348,10 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 				Stack: ws.Portal, Scope: domainScope(ws.Portal),
 				Key: "PUBLIC_SERVER", Old: portalOldRaw, New: portalNew,
 			})
+			portalRealm, _ := ws.Portal.Get("KEYCLOAK_REALM")
 			plan.Origins = append(plan.Origins, domainOrigin{
 				Stack: ws.Portal, Scope: domainScope(ws.Portal),
-				Realm: infraRealm, Origin: portalNew, Shared: true,
+				Realm: portalRealm, Origin: portalNew,
 			})
 		}
 	}
@@ -412,10 +408,9 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 				Stack: sp, Scope: domainScope(sp),
 				Key: "PUBLIC_SERVER", Old: speciesOldRaw, New: speciesNew,
 			})
-			shared := realm == infraRealm
 			plan.Origins = append(plan.Origins, domainOrigin{
 				Stack: sp, Scope: domainScope(sp),
-				Realm: realm, Origin: speciesNew, Shared: shared,
+				Realm: realm, Origin: speciesNew,
 			})
 		}
 	}
@@ -586,11 +581,7 @@ func (a *App) printDomainStatus(cmd *cobra.Command, ws *workspace.Workspace) err
 	fmt.Fprintln(out, title("Configured domains"))
 	var rows [][]string
 	auth, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	realm, _ := ws.Infra.Get("KEYCLOAK_REALM")
-	if realm == "" {
-		realm = "ibb"
-	}
-	rows = append(rows, []string{"infra", "emobase-infra", auth, realm})
+	rows = append(rows, []string{"infra", "emobase-infra", auth, "-"})
 	if ws.Portal != nil {
 		url, _ := ws.Portal.Get("PUBLIC_SERVER")
 		realm, _ := ws.Portal.Get("KEYCLOAK_REALM")
@@ -673,21 +664,12 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 		}
 	}
 	for _, o := range plan.Origins {
-		if o.Shared {
-			if err := r.EnsureSharedRealm(ws.Infra.Dir, o.Origin); err != nil {
-				return err
-			}
-			continue
+		realm, clientID, clientSecret, cocoUser, cocoPass, ok := stackRealm(o.Stack)
+		if !ok {
+			return fmt.Errorf("%s has no realm client credentials", o.Stack.Name)
 		}
-		clientID := mustGet(o.Stack, "KEYCLOAK_CLIENT_ID")
-		clientSecret := mustGet(o.Stack, "KEYCLOAK_CLIENT_SECRET")
-		cocoUser := mustGet(o.Stack, "COCO_USERNAME")
-		cocoPass := mustGet(o.Stack, "COCO_PASSWORD")
-		if clientID == "" || clientSecret == "" || cocoPass == "" {
-			return fmt.Errorf("%s is missing its dedicated-realm client ID, secret or seed password", o.Stack.Name)
-		}
-		if err := r.EnsureDedicatedRealm(
-			ws.Infra.Dir, o.Realm, o.Origin,
+		if err := r.EnsureRealm(
+			ws.Infra.Dir, realm, o.Origin,
 			clientID, clientSecret, cocoUser, cocoPass,
 		); err != nil {
 			return err
@@ -704,14 +686,12 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 	}
 
 	if plan.AuthChanged {
-		realm, _ := ws.Infra.Get("KEYCLOAK_REALM")
-		if realm == "" {
-			realm = "ibb"
-		}
-		auth, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-		auth = domainPlanValue(plan, ws.Infra, "KEYCLOAK_PUBLIC_URL", auth)
-		if err := verifyIssuer(auth, realm); err != nil {
-			fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", ui.Severity(checks.Warn), err)
+		if realm := domainVerifyRealm(ws); realm != "" {
+			auth, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
+			auth = domainPlanValue(plan, ws.Infra, "KEYCLOAK_PUBLIC_URL", auth)
+			if err := verifyIssuer(auth, realm); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", ui.Severity(checks.Warn), err)
+			}
 		}
 	}
 
@@ -721,6 +701,20 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "%s domain updated\n", ui.OK("OK"))
 	return nil
+}
+
+func domainVerifyRealm(ws *workspace.Workspace) string {
+	if ws.Portal != nil {
+		if realm, _ := ws.Portal.Get("KEYCLOAK_REALM"); realm != "" {
+			return realm
+		}
+	}
+	for _, sp := range ws.Species {
+		if realm, _ := sp.Get("KEYCLOAK_REALM"); realm != "" {
+			return realm
+		}
+	}
+	return ""
 }
 
 func domainPlanValue(plan *domainPlan, st *workspace.Stack, key, fallback string) string {

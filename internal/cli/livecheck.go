@@ -123,58 +123,69 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 
 	if keycloakUp {
 		base, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-		infraRealm, _ := ws.Infra.Get("KEYCLOAK_REALM")
 		adminUser, _ := ws.Infra.Get("KEYCLOAK_ADMIN")
 		adminPass, _ := ws.Infra.Get("KEYCLOAK_ADMIN_PASSWORD")
-		if base != "" && infraRealm != "" {
+		if base != "" {
 			kc := keycloak.New(base, adminUser, adminPass)
-			if ok, err := kc.RealmReachable(ctx, infraRealm); err != nil || !ok {
-				rep.Add(checks.Advisory("live.realm", "infra", checks.Error,
-					fmt.Sprintf("realm %q is not reachable at KEYCLOAK_PUBLIC_URL", infraRealm),
-					"check KEYCLOAK_PUBLIC_URL (it must be the browser URL) and emobase-infra logs"))
-			} else if adminUser != "" && adminPass != "" {
-				clientID, _ := ws.Infra.Get("KEYCLOAK_CLIENT_ID")
-				crep, err := kc.ClientByID(ctx, infraRealm, clientID)
-				switch {
-				case err != nil:
-					rep.Add(checks.Advisory("live.client", "infra", checks.Warn,
-						fmt.Sprintf("could not inspect client %q", clientID), err.Error()))
-				case crep == nil:
-					rep.Add(checks.Advisory("live.client", "infra", checks.Error,
-						fmt.Sprintf("client %q does not exist in realm %q", clientID, infraRealm),
-						"reset the shared realm or re-run `emobase-infra/init.sh`"))
-				default:
-					for _, sp := range ws.Species {
-						realm, _ := sp.Get("KEYCLOAK_REALM")
-						origin, _ := sp.Get("PUBLIC_SERVER")
-						if realm != infraRealm || origin == "" {
-							continue
-						}
-						if keycloak.MatchesOrigin(crep.RedirectURIs, origin) {
-							continue
-						}
-						originCopy, scopeCopy := origin, checks.ScopeOf(sp)
-						rep.Add(checks.Action("live.redirect_uri", scopeCopy, checks.Error, checks.FixSafe,
-							fmt.Sprintf("origin %s is not registered on shared client %q", origin, clientID),
-							"`emobase doctor --fix --live` registers it with `allow-origin.sh`",
-							func() ([]checks.Change, error) {
-								if err := runner.AllowOrigin(ws.Infra.Dir, originCopy); err != nil {
-									return nil, err
-								}
-								return []checks.Change{{Scope: scopeCopy, Key: "redirectUri", Old: "(unregistered)", New: originCopy}}, nil
-							}))
-					}
+			var order []string
+			groups := map[string][]*workspace.Stack{}
+			add := func(st *workspace.Stack) {
+				if st == nil || st.MissingEnv {
+					return
 				}
+				realm, _, _, _, _, ok := stackRealm(st)
+				if !ok {
+					return
+				}
+				if _, exists := groups[realm]; !exists {
+					order = append(order, realm)
+				}
+				groups[realm] = append(groups[realm], st)
 			}
+			add(ws.Portal)
 			for _, sp := range ws.Species {
-				realm, _ := sp.Get("KEYCLOAK_REALM")
-				if realm == "" || realm == infraRealm {
+				add(sp)
+			}
+			for _, realm := range order {
+				members := groups[realm]
+				scope := checks.ScopeOf(members[0])
+				if ok, err := kc.RealmReachable(ctx, realm); err != nil || !ok {
+					rep.Add(checks.Advisory("live.realm", scope, checks.Error,
+						fmt.Sprintf("realm %q is not reachable at KEYCLOAK_PUBLIC_URL", realm),
+						"check KEYCLOAK_PUBLIC_URL (it must be the browser URL) and emobase-infra logs"))
 					continue
 				}
-				if ok, err := kc.RealmReachable(ctx, realm); err != nil || !ok {
-					rep.Add(checks.Advisory("live.realm", checks.ScopeOf(sp), checks.Error,
-						fmt.Sprintf("dedicated realm %q is not reachable", realm),
-						"re-run `emobase create species`, or start `emobase-infra`"))
+				if adminUser == "" || adminPass == "" {
+					continue
+				}
+				_, clientID, _, _, _, _ := stackRealm(members[0])
+				crep, err := kc.ClientByID(ctx, realm, clientID)
+				switch {
+				case err != nil:
+					rep.Add(checks.Advisory("live.client", scope, checks.Warn,
+						fmt.Sprintf("could not inspect client %q in realm %q", clientID, realm), err.Error()))
+					continue
+				case crep == nil:
+					rep.Add(checks.Advisory("live.client", scope, checks.Error,
+						fmt.Sprintf("client %q does not exist in realm %q", clientID, realm),
+						"re-run the portal/species realm setup or `emobase bootstrap`"))
+					continue
+				}
+				for _, st := range members {
+					origin, _ := st.Get("PUBLIC_SERVER")
+					if origin == "" || keycloak.MatchesOrigin(crep.RedirectURIs, origin) {
+						continue
+					}
+					originCopy, scopeCopy := origin, checks.ScopeOf(st)
+					rep.Add(checks.Action("live.redirect_uri", scopeCopy, checks.Error, checks.FixSafe,
+						fmt.Sprintf("origin %s is not registered on client %q in realm %q", origin, clientID, realm),
+						"`emobase doctor --fix --live` registers it with the realm helper",
+						func() ([]checks.Change, error) {
+							if err := ensureStackRealm(ctx, runner, ws, st); err != nil {
+								return nil, err
+							}
+							return []checks.Change{{Scope: scopeCopy, Key: "redirectUri", Old: "(unregistered)", New: originCopy}}, nil
+						}))
 				}
 			}
 		}

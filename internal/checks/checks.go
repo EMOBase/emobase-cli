@@ -246,7 +246,7 @@ func Run(w *workspace.Workspace) *Report {
 	}
 	if w.Portal != nil && !w.Portal.MissingEnv {
 		checkRequired(r, w.Portal, spec.RequiredPortal)
-		checkShared(r, w, w.Portal, true)
+		checkShared(r, w, w.Portal)
 	}
 	for _, sp := range w.Species {
 		if sp.MissingEnv {
@@ -254,10 +254,11 @@ func Run(w *workspace.Workspace) *Report {
 		}
 		checkRequired(r, sp, spec.RequiredSpecies)
 		checkSpeciesProjectName(r, sp)
-		checkShared(r, w, sp, false)
-		checkSpeciesRealm(r, w, sp)
+		checkShared(r, w, sp)
+		checkSpeciesRealm(r, sp)
 		checkIssuerKeys(r, sp)
 	}
+	checkRealmGroups(r, w)
 	checkSpeciesPortalURL(r, w)
 	checkTrailingSlashes(r, w)
 	checkUniqueness(r, w)
@@ -271,9 +272,6 @@ func Run(w *workspace.Workspace) *Report {
 func infraRequired() []string {
 	out := append([]string{}, spec.RequiredInfra...)
 	for _, k := range spec.SharedToInfra {
-		out = append(out, k.Key)
-	}
-	for _, k := range spec.RealmKeys {
 		out = append(out, k.Key)
 	}
 	return out
@@ -321,20 +319,14 @@ func checkRequired(r *Report, st *workspace.Stack, keys []string) {
 	}
 }
 
-// checkShared compares a stack's shared keys with emobase-infra. When shared
-// is true the portal's shared realm is required; species are compared only
-// when they actually reuse the realm.
-func checkShared(r *Report, w *workspace.Workspace, st *workspace.Stack, isPortal bool) {
+// checkShared compares the global shared keys with emobase-infra. Realm and
+// client credentials are per realm group and are checked separately.
+func checkShared(r *Report, w *workspace.Workspace, st *workspace.Stack) {
 	if w.Infra == nil || w.Infra.Env == nil {
 		return
 	}
 	for _, sk := range spec.SharedToInfra {
 		compareShared(r, w.Infra, st, sk)
-	}
-	if isPortal || speciesUsesSharedRealm(w, st) {
-		for _, sk := range spec.RealmKeys {
-			compareShared(r, w.Infra, st, sk)
-		}
 	}
 }
 
@@ -376,16 +368,7 @@ func compareShared(r *Report, infra, st *workspace.Stack, sk spec.SharedKey) {
 	})
 }
 
-func speciesUsesSharedRealm(w *workspace.Workspace, st *workspace.Stack) bool {
-	if w.Infra == nil {
-		return false
-	}
-	infraRealm, _ := w.Infra.Get("KEYCLOAK_REALM")
-	realm, _ := st.Get("KEYCLOAK_REALM")
-	return infraRealm != "" && realm == infraRealm
-}
-
-func checkSpeciesRealm(r *Report, w *workspace.Workspace, st *workspace.Stack) {
+func checkSpeciesRealm(r *Report, st *workspace.Stack) {
 	realm, _ := st.Get("KEYCLOAK_REALM")
 	clientID, _ := st.Get("KEYCLOAK_CLIENT_ID")
 	secret, _ := st.Get("KEYCLOAK_CLIENT_SECRET")
@@ -395,28 +378,71 @@ func checkSpeciesRealm(r *Report, w *workspace.Workspace, st *workspace.Stack) {
 			Scope:    scopeOf(st),
 			Severity: Error,
 			Fix:      FixNone,
-			Message:  "KEYCLOAK_REALM is missing; choose a shared or dedicated realm",
-			Hint:     "`emobase create species --realm shared`   (or `--realm ibb_<species>`)",
+			Message:  "KEYCLOAK_REALM is missing; choose an existing realm or create a new one",
+			Hint:     "`emobase create species`   (or `--keycloak-realm join:REALM` / `new:REALM`)",
 		})
 		return
 	}
-	if w.Infra == nil {
-		return
-	}
-	infraRealm, _ := w.Infra.Get("KEYCLOAK_REALM")
-	if realm == infraRealm {
-		return // shared realm values are checked by checkShared
-	}
-	// Dedicated realm: this stack owns its client credentials.
 	if strings.TrimSpace(clientID) == "" || strings.TrimSpace(secret) == "" {
 		r.add(Finding{
 			Check:    "realm.client",
 			Scope:    scopeOf(st),
 			Severity: Error,
 			Fix:      FixNone,
-			Message:  fmt.Sprintf("dedicated realm %s needs KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET", realm),
-			Hint:     fmt.Sprintf("`cd %s` and run the repository's realm setup, or re-run `emobase create species --realm %s`", st.Dir, realm),
+			Message:  fmt.Sprintf("realm %s needs KEYCLOAK_CLIENT_ID and KEYCLOAK_CLIENT_SECRET", realm),
+			Hint:     fmt.Sprintf("`cd %s` and re-run the realm setup", st.Dir),
 		})
+	}
+}
+
+// checkRealmGroups ensures every stack that uses the same realm also uses the
+// same client ID and secret.
+func checkRealmGroups(r *Report, w *workspace.Workspace) {
+	type group struct {
+		stack  *workspace.Stack
+		client string
+		secret string
+	}
+	seen := map[string]group{}
+	add := func(st *workspace.Stack) {
+		if st == nil || st.MissingEnv {
+			return
+		}
+		realm, _ := st.Get("KEYCLOAK_REALM")
+		if strings.TrimSpace(realm) == "" {
+			return
+		}
+		client, _ := st.Get("KEYCLOAK_CLIENT_ID")
+		secret, _ := st.Get("KEYCLOAK_CLIENT_SECRET")
+		first, ok := seen[realm]
+		if !ok {
+			seen[realm] = group{stack: st, client: client, secret: secret}
+			return
+		}
+		if client != "" && first.client != "" && client != first.client {
+			r.add(Finding{
+				Check:    "realm.client_mismatch",
+				Scope:    scopeOf(st),
+				Severity: Error,
+				Fix:      FixNone,
+				Message:  fmt.Sprintf("realm %s uses client %q here but %q in %s", realm, client, first.client, first.stack.Name),
+				Hint:     "all checkouts that share a realm must use the same client ID and secret",
+			})
+		}
+		if secret != "" && first.secret != "" && secret != first.secret {
+			r.add(Finding{
+				Check:    "realm.secret_mismatch",
+				Scope:    scopeOf(st),
+				Severity: Error,
+				Fix:      FixNone,
+				Message:  fmt.Sprintf("realm %s has a different client secret from %s", realm, first.stack.Name),
+				Hint:     "copy the realm owner's KEYCLOAK_CLIENT_SECRET into this checkout",
+			})
+		}
+	}
+	add(w.Portal)
+	for _, sp := range w.Species {
+		add(sp)
 	}
 }
 

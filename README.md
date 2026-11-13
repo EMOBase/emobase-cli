@@ -9,9 +9,9 @@ It is **not** a fourth source of configuration. Every checkout keeps its own
 
 | Checkout | Role | Owns |
 | --- | --- | --- |
-| `emobase-infra` | shared infrastructure | MySQL root password, Keycloak public/internal URLs, the shared Docker network, the shared realm and client |
-| `emobase-portal-deploy` | multi-species portal | `PUBLIC_SERVER`, portal secrets, genomics database settings |
-| `emobase-deploy-<species>` | one species site | dedicated realm credentials (when used), Directus database, HTTP port, Compose project name |
+| `emobase-infra` | shared infrastructure | MySQL root password, Keycloak admin credentials, Keycloak public/internal URLs, the shared Docker network |
+| `emobase-portal-deploy` | multi-species portal | `PUBLIC_SERVER`, portal realm/client/seed credentials, genomics database settings |
+| `emobase-deploy-<species>` | one species site | joined or new realm credentials, Directus database, HTTP port, Compose project name |
 
 One `emobase-deploy` clone exists per species. The CLI never stores secrets,
 never copies them between checkouts, and never rewrites a file it does not need
@@ -276,9 +276,10 @@ emobase create species --species Tcas \
 emobase bootstrap
 ```
 
-`create portal` and `create species` create or update the shared Keycloak realm
-when infra is already running. If it is not, `emobase up` or
-`emobase bootstrap` does it after starting infra.
+`create portal` and `create species` create or update their own Keycloak realm
+when infra is already running. A species can join the portal realm, join
+another species realm, or create a new independent realm. If infra is not
+running, `emobase up` or `emobase bootstrap` creates the realm later.
 
 ## Changing public URLs
 
@@ -336,8 +337,8 @@ global.
 
 - Every stack has a `.env` and every required key is non-empty.
 - Shared keys match the authoritative `emobase-infra` values
-  (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL`,
-  `EMOBASE_INFRA_NETWORK`, and the shared realm/client keys when used).
+  (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL` and
+  `EMOBASE_INFRA_NETWORK`).
 - Species `PORTAL_SERVER` values point at the local portal.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
@@ -346,7 +347,7 @@ global.
   `/realms/<realm>`.
 - Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
-- A dedicated-realm species owns its client ID and secret.
+- Every checkout using the same realm uses the same client ID and secret.
 - `COMPOSE_PROJECT_NAME` is set and unique.
 - No `change-me` placeholders remain.
 

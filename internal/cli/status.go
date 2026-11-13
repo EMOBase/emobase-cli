@@ -116,8 +116,10 @@ func (a *App) collectStatus(ctx context.Context, ws *workspace.Workspace) status
 		if base, ok := ws.Infra.Get("KEYCLOAK_PUBLIC_URL"); ok && base != "" {
 			kc := keycloak.New(base, "", "")
 			realms := map[string]bool{}
-			if r, ok := ws.Infra.Get("KEYCLOAK_REALM"); ok && r != "" {
-				realms[r] = true
+			if ws.Portal != nil {
+				if r, ok := ws.Portal.Get("KEYCLOAK_REALM"); ok && r != "" {
+					realms[r] = true
+				}
 			}
 			for _, sp := range ws.Species {
 				if r, ok := sp.Get("KEYCLOAK_REALM"); ok && r != "" {

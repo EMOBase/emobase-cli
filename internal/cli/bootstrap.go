@@ -83,6 +83,10 @@ Use --dry-run to print the exact commands without running them.`,
 						return err
 					}
 				}
+				fmt.Fprintln(out, title("Database"))
+				if err := ensurePortalDatabase(r, ws, ws.Portal); err != nil {
+					return err
+				}
 				if !skipSetup {
 					if err := r.SetupJBrowse2(ws.Portal.Dir); err != nil {
 						return err

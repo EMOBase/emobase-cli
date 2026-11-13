@@ -147,12 +147,6 @@ func matrixRows(ws *workspace.Workspace) ([]string, [][]string) {
 			auth spec.Authority
 		}{k.Key, k.Authority})
 	}
-	for _, k := range spec.RealmKeys {
-		keys = append(keys, struct {
-			key  string
-			auth spec.Authority
-		}{k.Key, k.Authority})
-	}
 	var rows [][]string
 	for _, k := range keys {
 		row := []string{k.key, string(k.auth)}

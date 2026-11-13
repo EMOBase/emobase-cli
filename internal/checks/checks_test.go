@@ -23,13 +23,8 @@ func infraEnv() map[string]string {
 		"KEYCLOAK_HOST_PORT":      "8081",
 		"KEYCLOAK_ADMIN":          "admin",
 		"KEYCLOAK_ADMIN_PASSWORD": "admin-secret",
-		"COCO_USERNAME":           "coco",
-		"COCO_PASSWORD":           "coco-secret",
 		"MYSQL_ROOT_PASSWORD":     "root-secret",
 		"EMOBASE_INFRA_NETWORK":   "emobase-infra",
-		"KEYCLOAK_REALM":          "ibb",
-		"KEYCLOAK_CLIENT_ID":      "ibb-client",
-		"KEYCLOAK_CLIENT_SECRET":  "client-secret",
 	}
 }
 
@@ -49,9 +44,11 @@ func portalEnv() map[string]string {
 		"KEYCLOAK_PUBLIC_URL":              "http://localhost:8081/keycloak",
 		"KEYCLOAK_INTERNAL_URL":            "http://keycloak:8080/keycloak",
 		"EMOBASE_INFRA_NETWORK":            "emobase-infra",
-		"KEYCLOAK_REALM":                   "ibb",
-		"KEYCLOAK_CLIENT_ID":               "ibb-client",
+		"KEYCLOAK_REALM":                   "emobase-portal",
+		"KEYCLOAK_CLIENT_ID":               "emobase-portal-client",
 		"KEYCLOAK_CLIENT_SECRET":           "client-secret",
+		"COCO_USERNAME":                    "coco",
+		"COCO_PASSWORD":                    "coco-secret",
 	}
 }
 
@@ -72,7 +69,7 @@ func speciesEnv() map[string]string {
 		"COMPOSE_PROJECT_NAME":          "tcas",
 		"SSR_OIDC_SESSION_SECRET":       "ssr-secret",
 		"INTERNAL_API_GENOMICS_SERVICE": "http://genomicsservice/api",
-		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/ibb",
+		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/emobase-portal",
 		"INTERNAL_DIRECTUS_URL":         "http://directus:8055",
 		"PUBLIC_DATA_DIR":               "./data/public",
 		"PRIVATE_DATA_DIR":              "./data/private",
@@ -83,8 +80,9 @@ func speciesEnv() map[string]string {
 		"MYSQL_ROOT_PASSWORD":           "root-secret",
 		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8081/keycloak",
 		"KEYCLOAK_INTERNAL_URL":         "http://keycloak:8080/keycloak",
-		"KEYCLOAK_REALM":                "ibb",
-		"KEYCLOAK_CLIENT_ID":            "ibb-client",
+		"KEYCLOAK_REALM":                "emobase-portal",
+		"KEYCLOAK_REALM_MODE":           "joined",
+		"KEYCLOAK_CLIENT_ID":            "emobase-portal-client",
 		"KEYCLOAK_CLIENT_SECRET":        "client-secret",
 	}
 }
@@ -307,7 +305,7 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 		"COMPOSE_PROJECT_NAME":          "dmel",
 		"SSR_OIDC_SESSION_SECRET":       "x",
 		"INTERNAL_API_GENOMICS_SERVICE": "http://g",
-		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/ibb",
+		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/emobase-portal",
 		"INTERNAL_DIRECTUS_URL":         "http://d",
 		"PUBLIC_DATA_DIR":               "./p",
 		"PRIVATE_DATA_DIR":              "./pr",
@@ -318,8 +316,9 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 		"MYSQL_ROOT_PASSWORD":           "root-secret",
 		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8081/keycloak",
 		"KEYCLOAK_INTERNAL_URL":         "http://keycloak:8080/keycloak",
-		"KEYCLOAK_REALM":                "ibb",
-		"KEYCLOAK_CLIENT_ID":            "ibb-client",
+		"KEYCLOAK_REALM":                "emobase-portal",
+		"KEYCLOAK_REALM_MODE":           "joined",
+		"KEYCLOAK_CLIENT_ID":            "emobase-portal-client",
 		"KEYCLOAK_CLIENT_SECRET":        "client-secret",
 	})
 	ws := discover(t, root, envs)

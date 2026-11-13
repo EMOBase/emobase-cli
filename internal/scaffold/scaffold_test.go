@@ -77,3 +77,23 @@ func TestCloneRunsFromParent(t *testing.T) {
 		}
 	}
 }
+
+func TestDryRunRedactsSecrets(t *testing.T) {
+	var out bytes.Buffer
+	r := &Runner{DryRun: true, Stdout: &out, Stderr: &out}
+	if err := r.Exec("/tmp", "cmd",
+		"--client-secret", "client-secret-value",
+		"--coco-password", "coco-password-value",
+		"--origin", "https://example.org"); err != nil {
+		t.Fatal(err)
+	}
+	line := out.String()
+	for _, secret := range []string{"client-secret-value", "coco-password-value"} {
+		if strings.Contains(line, secret) {
+			t.Fatalf("secret %q leaked in %q", secret, line)
+		}
+	}
+	if !strings.Contains(line, "********") {
+		t.Fatalf("redaction marker missing: %q", line)
+	}
+}
