@@ -70,7 +70,7 @@ func TestPlanPruneOnlyUsesLedgerResources(t *testing.T) {
 		},
 	}
 	ws := &workspace.Workspace{Root: root}
-	actions, stale, err := planPrune(ws, ledger)
+	actions, stale, _, err := planPrune(ws, ledger)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestPlanPruneKeepsSharedRealm(t *testing.T) {
 				Role:   "species",
 				Name:   "joined",
 				Dir:    "joined",
-				Status: "pending_cleanup",
+				Status: "active",
 				Realm: &state.Realm{
 					Name:  "emobase-portal",
 					Mode:  "joined",
@@ -112,9 +112,12 @@ func TestPlanPruneKeepsSharedRealm(t *testing.T) {
 			},
 		},
 	}
-	actions, _, err := planPrune(&workspace.Workspace{Root: root}, ledger)
+	actions, _, blocked, err := planPrune(&workspace.Workspace{Root: root}, ledger)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(blocked) == 0 {
+		t.Fatal("expected the shared realm to be blocked")
 	}
 	for _, act := range actions {
 		if act.realm != "" {
