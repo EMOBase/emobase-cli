@@ -134,9 +134,10 @@ func (r *Runner) CreateDatabase(infraDir, db string) error {
 	return r.Script(infraDir, "./scripts/create-database.sh", db)
 }
 
-// DropDatabase calls emobase-infra's database helper.
+// DropDatabase calls emobase-infra's database helper. The CLI only calls this
+// after its own --purge --yes confirmation, so the script prompt is skipped.
 func (r *Runner) DropDatabase(infraDir, db string) error {
-	return r.Script(infraDir, "./scripts/drop-database.sh", db)
+	return r.Script(infraDir, "./scripts/drop-database.sh", "--yes", db)
 }
 
 // EnsureRealm creates or updates a realm and adds an origin. It keeps an

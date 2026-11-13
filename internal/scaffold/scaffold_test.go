@@ -78,6 +78,17 @@ func TestCloneRunsFromParent(t *testing.T) {
 	}
 }
 
+func TestDropDatabaseSkipsPrompt(t *testing.T) {
+	var out bytes.Buffer
+	r := &Runner{DryRun: true, Stdout: &out, Stderr: &out}
+	if err := r.DropDatabase("/tmp/infra", "directus_tcas"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "drop-database.sh --yes directus_tcas") {
+		t.Fatalf("out = %q", out.String())
+	}
+}
+
 func TestDryRunRedactsSecrets(t *testing.T) {
 	var out bytes.Buffer
 	r := &Runner{DryRun: true, Stdout: &out, Stderr: &out}
