@@ -7,6 +7,7 @@ import (
 	"github.com/EMOBase/emobase-cli/internal/scaffold"
 	"github.com/EMOBase/emobase-cli/internal/state"
 	"github.com/EMOBase/emobase-cli/internal/ui"
+	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -78,13 +79,15 @@ func (a *App) speciesSetupCmd() *cobra.Command {
 }
 
 func (a *App) speciesRemoveCmd() *cobra.Command {
-	var purge bool
+	var purge, keepDir bool
 	cmd := &cobra.Command{
 		Use:   "remove <species|checkout>",
-		Short: "Stop a species stack and its data",
+		Short: "Stop a species stack, delete its data and remove the checkout",
 		Long: `Without --purge, remove only prints the exact commands. With --purge --yes it
-stops the stack and deletes its Compose volumes and Directus database. The
-checkout directory is never deleted by this command.`,
+stops the stack, deletes its Compose volumes, drops the Directus database and
+removes the checkout directory. Use --keep-dir to keep the directory.
+
+A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ws, err := a.Workspace()
@@ -103,9 +106,16 @@ checkout directory is never deleted by this command.`,
 				if ws.Infra != nil && db != "" {
 					fmt.Fprintf(out, "  %s/scripts/drop-database.sh %s\n", ws.Infra.Dir, db)
 				}
-				fmt.Fprintf(out, "  rm -rf %s\n", sp.Dir)
+				if !keepDir {
+					fmt.Fprintf(out, "  rm -rf %s\n", sp.Dir)
+				}
 				fmt.Fprintln(out)
-				fmt.Fprintln(out, muted("Re-run with --purge --yes to run the first two commands."))
+				fmt.Fprintln(out, muted("Re-run with --purge --yes to run these commands."))
+				if keepDir {
+					fmt.Fprintln(out, muted("The checkout directory will be kept."))
+				} else {
+					fmt.Fprintln(out, muted("Add --keep-dir to keep the checkout directory."))
+				}
 				return nil
 			}
 			if !a.Yes {
@@ -158,22 +168,37 @@ checkout directory is never deleted by this command.`,
 				fmt.Fprintln(out, muted("Dedicated realm cleanup deferred to emobase prune."))
 			}
 
+			if !keepDir {
+				if err := workspace.SafeRemoveDir(ws.Root, sp.Dir); err != nil {
+					return err
+				}
+			}
+
 			if pending {
 				entry.Status = "pending_cleanup"
 				if err := ledger.Save(ws.Root); err != nil {
 					return err
 				}
-				fmt.Fprintf(out, "%s stopped %s; cleanup is pending. Run: emobase prune\n", ui.OK("OK"), sp.Name)
+				if keepDir {
+					fmt.Fprintf(out, "%s stopped %s; the directory %s was kept and cleanup is pending. Run: emobase prune\n", ui.OK("OK"), sp.Name, sp.Dir)
+				} else {
+					fmt.Fprintf(out, "%s removed %s (%s); cleanup is pending. Run: emobase prune\n", ui.OK("OK"), sp.Name, sp.Dir)
+				}
 				return nil
 			}
 			ledger.Delete(key)
 			if err := ledger.Save(ws.Root); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "%s stopped %s; the directory %s was kept\n", ui.OK("OK"), sp.Name, sp.Dir)
+			if keepDir {
+				fmt.Fprintf(out, "%s stopped %s; the directory %s was kept\n", ui.OK("OK"), sp.Name, sp.Dir)
+			} else {
+				fmt.Fprintf(out, "%s removed %s (%s)\n", ui.OK("OK"), sp.Name, sp.Dir)
+			}
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&purge, "purge", false, "stop the stack, delete its volumes and drop the database")
+	cmd.Flags().BoolVar(&purge, "purge", false, "stop the stack, delete its volumes, drop the database and remove the checkout")
+	cmd.Flags().BoolVar(&keepDir, "keep-dir", false, "keep the checkout directory after purging")
 	return cmd
 }

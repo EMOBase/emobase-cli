@@ -335,9 +335,10 @@ workspace/server, so do not commit it.
 
 - `create` records the stack with its resource names but `created: false`.
 - `species setup` and `bootstrap` mark resources created after success.
-- `species remove --purge` uses the ledger. If a resource was never created, it
+- `species remove --purge` stops the stack, drops its database, removes the
+  checkout directory and uses the ledger. If a resource was never created, it
   does not require MySQL or Keycloak. If cleanup cannot run, it marks the entry
-  `pending_cleanup`.
+  `pending_cleanup`. Add `--keep-dir` to keep the directory.
 - `emobase prune` removes databases and dedicated realms recorded in the
   ledger for removed checkouts. It never guesses from names and never touches
   resources that are not recorded.
@@ -367,7 +368,7 @@ prunes.
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add ...` | Same as `emobase create species` |
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
-| `emobase species remove <ref> [--purge --yes]` | Show (or execute) teardown commands |
+| `emobase species remove <ref> [--purge --yes] [--keep-dir]` | Show (or execute) teardown commands and remove the checkout |
 | `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
 | `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
 | `emobase prune [--yes]` | Remove state-owned resources left by deleted stacks |
