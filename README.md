@@ -31,40 +31,56 @@ Every push to `main` publishes a `latest` release with stable asset names. It
 changes with each commit, so use a tagged release for production
 reproducibility. `emobase --version` reports `main-<commit>`.
 
+Each block downloads into a temporary directory and removes it automatically.
+
 #### Linux server
 
 ```sh
-case "$(uname -m)" in
-  x86_64) ARCH=amd64 ;;
-  aarch64|arm64) ARCH=arm64 ;;
-  *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
-esac
-BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+(
+  set -e
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  cd "$tmp"
 
-curl -fsSLO "$BASE/emobase_linux_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/checksums.txt"
-grep "linux_${ARCH}" checksums.txt | sha256sum -c -
-tar -xzf "emobase_linux_${ARCH}.tar.gz" emobase
-sudo install -m 0755 emobase /usr/local/bin/emobase
+  case "$(uname -m)" in
+    x86_64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+  esac
+  BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+
+  curl -fsSLO "$BASE/emobase_linux_${ARCH}.tar.gz"
+  curl -fsSLO "$BASE/checksums.txt"
+  grep "linux_${ARCH}" checksums.txt | sha256sum -c -
+  tar -xzf "emobase_linux_${ARCH}.tar.gz" emobase
+  sudo install -m 0755 emobase /usr/local/bin/emobase
+)
 emobase --version
 ```
 
 #### macOS
 
 ```sh
-case "$(uname -m)" in
-  x86_64) ARCH=amd64 ;;
-  arm64) ARCH=arm64 ;;
-  *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
-esac
-BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+(
+  set -e
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  cd "$tmp"
 
-curl -fsSLO "$BASE/emobase_darwin_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/checksums.txt"
-grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
-tar -xzf "emobase_darwin_${ARCH}.tar.gz" emobase
-./emobase --version
-sudo install -m 0755 emobase /usr/local/bin/emobase
+  case "$(uname -m)" in
+    x86_64) ARCH=amd64 ;;
+    arm64) ARCH=arm64 ;;
+    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+  esac
+  BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+
+  curl -fsSLO "$BASE/emobase_darwin_${ARCH}.tar.gz"
+  curl -fsSLO "$BASE/checksums.txt"
+  grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
+  tar -xzf "emobase_darwin_${ARCH}.tar.gz" emobase
+  sudo install -m 0755 emobase /usr/local/bin/emobase
+)
+emobase --version
 ```
 
 ### Tagged release (pinned)
@@ -72,35 +88,66 @@ sudo install -m 0755 emobase /usr/local/bin/emobase
 #### Linux server
 
 ```sh
-VER=0.1.1
-ARCH=amd64        # uname -m: x86_64 -> amd64, aarch64/arm64 -> arm64
-BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+(
+  set -e
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  cd "$tmp"
 
-curl -fsSLO "$BASE/emobase_${VER}_linux_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/checksums.txt"
-grep "linux_${ARCH}" checksums.txt | sha256sum -c -
-tar -xzf "emobase_${VER}_linux_${ARCH}.tar.gz" emobase
-sudo install -m 0755 emobase /usr/local/bin/emobase
+  VER=0.1.1
+  case "$(uname -m)" in
+    x86_64) ARCH=amd64 ;;
+    aarch64|arm64) ARCH=arm64 ;;
+    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+  esac
+  BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+
+  curl -fsSLO "$BASE/emobase_${VER}_linux_${ARCH}.tar.gz"
+  curl -fsSLO "$BASE/checksums.txt"
+  grep "linux_${ARCH}" checksums.txt | sha256sum -c -
+  tar -xzf "emobase_${VER}_linux_${ARCH}.tar.gz" emobase
+  sudo install -m 0755 emobase /usr/local/bin/emobase
+)
 emobase --version
 ```
 
 #### macOS
 
 ```sh
-VER=0.1.1
-ARCH=arm64        # arm64 on Apple Silicon, amd64 on Intel
-BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+(
+  set -e
+  tmp="$(mktemp -d)"
+  trap 'rm -rf "$tmp"' EXIT
+  cd "$tmp"
 
-curl -fsSLO "$BASE/emobase_${VER}_darwin_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/checksums.txt"
-grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
-tar -xzf "emobase_${VER}_darwin_${ARCH}.tar.gz" emobase
-./emobase --version
-sudo install -m 0755 emobase /usr/local/bin/emobase
+  VER=0.1.1
+  case "$(uname -m)" in
+    x86_64) ARCH=amd64 ;;
+    arm64) ARCH=arm64 ;;
+    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+  esac
+  BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
+
+  curl -fsSLO "$BASE/emobase_${VER}_darwin_${ARCH}.tar.gz"
+  curl -fsSLO "$BASE/checksums.txt"
+  grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
+  tar -xzf "emobase_${VER}_darwin_${ARCH}.tar.gz" emobase
+  sudo install -m 0755 emobase /usr/local/bin/emobase
+)
+emobase --version
 ```
 
-To install without sudo, use `install -D -m 0755 emobase ~/.local/bin/emobase`
-in either section.
+To install for one user instead, replace the `sudo install ...` line inside the
+temporary-directory block with:
+
+```sh
+# Linux
+install -D -m 0755 emobase ~/.local/bin/emobase
+
+# macOS
+mkdir -p ~/.local/bin
+install -m 0755 emobase ~/.local/bin/emobase
+```
 
 ### Build from source (local machine)
 
