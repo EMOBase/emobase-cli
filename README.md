@@ -134,18 +134,6 @@ so only `/usr/local/bin/emobase` remains after installation.
 ) && emobase --version
 ```
 
-If you installed with the older instructions, remove the files left in your
-home directory:
-
-```sh
-rm -f ~/emobase_linux_*.tar.gz ~/emobase_darwin_*.tar.gz ~/checksums.txt
-rm -f ~/emobase
-```
-
-The extracted `~/emobase` is the downloaded binary; the installed copy is still
-`/usr/local/bin/emobase`. Do not remove your `emobase-infra` or other checkout
-directories.
-
 To install for one user instead, replace the `sudo install ...` line inside the
 temporary-directory block with:
 
