@@ -2,6 +2,9 @@ package scaffold
 
 import (
 	"bytes"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,6 +22,22 @@ func TestQuoteArg(t *testing.T) {
 		if got := quoteArg(in); got != want {
 			t.Errorf("quoteArg(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestInitMarksCLIInvocation(t *testing.T) {
+	dir := t.TempDir()
+	script := "#!/bin/sh\nprintf '%s' \"${EMOBASE_CLI:-unset}\"\n"
+	if err := os.WriteFile(filepath.Join(dir, "init.sh"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	r := &Runner{Stdout: &out, Stderr: io.Discard, Stdin: strings.NewReader("")}
+	if err := r.Init(dir); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "1" {
+		t.Fatalf("EMOBASE_CLI in init.sh = %q, want 1", got)
 	}
 }
 

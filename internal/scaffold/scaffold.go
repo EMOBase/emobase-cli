@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,11 @@ type Runner struct {
 
 // Exec runs a command in dir.
 func (r *Runner) Exec(dir, name string, args ...string) error {
+	return r.exec(dir, nil, name, args...)
+}
+
+// exec runs a command in dir with extra environment variables.
+func (r *Runner) exec(dir string, extraEnv []string, name string, args ...string) error {
 	parts := make([]string, 0, len(args)+1)
 	parts = append(parts, quoteArg(name))
 	redact := false
@@ -51,10 +57,33 @@ func (r *Runner) Exec(dir, name string, args ...string) error {
 	cmd.Stdin = r.Stdin
 	cmd.Stdout = r.Stdout
 	cmd.Stderr = r.Stderr
+	if len(extraEnv) > 0 {
+		cmd.Env = mergeEnv(os.Environ(), extraEnv)
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w", line, err)
 	}
 	return nil
+}
+
+// mergeEnv applies overrides to base, replacing an existing key instead of
+// creating a duplicate entry.
+func mergeEnv(base, overrides []string) []string {
+	out := make([]string, 0, len(base)+len(overrides))
+	for _, entry := range base {
+		key, _, _ := strings.Cut(entry, "=")
+		skip := false
+		for _, override := range overrides {
+			if okey, _, _ := strings.Cut(override, "="); okey == key {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			out = append(out, entry)
+		}
+	}
+	return append(out, overrides...)
 }
 
 // quoteArg renders an argument for the printed command line. It never affects
@@ -79,9 +108,11 @@ func (r *Runner) Compose(dir string, args ...string) error {
 	return r.Exec(dir, "docker", append([]string{"compose"}, args...)...)
 }
 
-// Init runs ./init.sh with the given flags.
+// Init runs ./init.sh with the given flags. EMOBASE_CLI=1 tells the deploy
+// script that a person is running it through the CLI, so it can offer
+// CLI-specific next steps without assuming the CLI when run standalone.
 func (r *Runner) Init(dir string, args ...string) error {
-	return r.Script(dir, "./init.sh", args...)
+	return r.exec(dir, []string{"EMOBASE_CLI=1"}, "./init.sh", args...)
 }
 
 // Up starts a stack and waits for health checks.
