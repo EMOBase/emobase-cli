@@ -105,7 +105,11 @@ apply is the non-interactive form for automation.
 
 The command does not configure DNS, TLS or the reverse proxy. Set those up
 first, then point the URLs here. If the Keycloak URL changes, existing login
-sessions become invalid.`,
+sessions become invalid.
+
+When the workspace has no emobase-portal-deploy checkout, the portal is
+external: domain only manages this server's Keycloak and species URLs and
+leaves PORTAL_SERVER in the species .env untouched.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runDomainInteractive(cmd, o)
@@ -114,7 +118,7 @@ sessions become invalid.`,
 
 	f := cmd.PersistentFlags()
 	f.StringVar(&o.auth, "auth", "", "Keycloak public URL, e.g. https://auth.example.org/keycloak")
-	f.StringVar(&o.portal, "portal", "", "portal public URL")
+	f.StringVar(&o.portal, "portal", "", "local portal public URL (needs an emobase-portal-deploy checkout)")
 	f.StringArrayVar(&o.species, "species", nil, "species URL as REF=URL (repeatable)")
 
 	cmd.AddCommand(a.domainPlanCmd(o), a.domainApplyCmd(o), a.domainStatusCmd(o))
@@ -268,7 +272,7 @@ func resolveDomainValues(ws *workspace.Workspace, o *domainOpts) (*domainValues,
 			vals.portal = o.portal
 		}
 	} else if o.portal != "" {
-		return nil, fmt.Errorf("--portal was given, but no emobase-portal-deploy checkout was found")
+		return nil, fmt.Errorf("--portal was given, but no emobase-portal-deploy checkout was found; this workspace only manages its own Keycloak and species URLs")
 	}
 	for _, sp := range ws.Species {
 		u, _ := sp.Get("PUBLIC_SERVER")

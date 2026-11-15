@@ -146,6 +146,66 @@ func TestDomainPlanPreservesInternalPortalURL(t *testing.T) {
 	}
 }
 
+func TestDomainPlanSpeciesOnlySkipsPortal(t *testing.T) {
+	ws := domainFixture()
+	ws.Portal = nil
+	ws.Species[0].Env.Set("PORTAL_SERVER", "https://portal.example.org")
+	vals := domainValuesFor(ws)
+	vals.auth = "https://auth.example.org/keycloak"
+	vals.species[ws.Species[0]] = "https://tcas.example.org"
+
+	plan, err := buildDomainPlan(ws, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.PortalChanged {
+		t.Fatal("species-only workspace must not report a portal change")
+	}
+	for _, ch := range plan.Changes {
+		if ch.Scope == "portal" || ch.Key == "PORTAL_SERVER" {
+			t.Fatalf("species-only plan touched the portal: %#v", ch)
+		}
+	}
+	for _, want := range []string{
+		"infra/KEYCLOAK_PUBLIC_URL",
+		"species:emobase-deploy-tcas/KEYCLOAK_PUBLIC_URL",
+		"species:emobase-deploy-tcas/PUBLIC_SERVER",
+	} {
+		if !hasDomainChange(plan, want) {
+			t.Errorf("missing %s", want)
+		}
+	}
+	if len(plan.Origins) != 1 || plan.Origins[0].Origin != "https://tcas.example.org" {
+		t.Fatalf("origins = %#v", plan.Origins)
+	}
+	if got := mustGet(ws.Species[0], "PORTAL_SERVER"); got != "https://portal.example.org" {
+		t.Fatalf("PORTAL_SERVER = %q", got)
+	}
+}
+
+func TestResolveDomainValuesSpeciesOnly(t *testing.T) {
+	ws := domainFixture()
+	ws.Portal = nil
+
+	vals, err := resolveDomainValues(ws, &domainOpts{
+		auth:    "https://auth.example.org/keycloak",
+		species: []string{"Tcas=https://tcas.example.org"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if vals.portal != "" {
+		t.Fatalf("portal = %q", vals.portal)
+	}
+	if got := vals.species[ws.Species[0]]; got != "https://tcas.example.org" {
+		t.Fatalf("species URL = %q", got)
+	}
+
+	if _, err := resolveDomainValues(ws, &domainOpts{portal: "https://portal.example.org"}); err == nil {
+		t.Fatal("expected --portal to fail without a portal checkout")
+	}
+}
+
 func TestDomainPlanSpeciesChangeIsLocal(t *testing.T) {
 	ws := domainFixture()
 	vals := domainValuesFor(ws)
@@ -239,6 +299,55 @@ func TestDomainPlanCommand(t *testing.T) {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("output missing %q:\n%s", want, out.String())
 		}
+	}
+}
+
+func TestDomainPlanCommandSpeciesOnly(t *testing.T) {
+	root := t.TempDir()
+	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_REALM=ibb",
+		"KEYCLOAK_HOST_PORT=8081",
+		"",
+	}, "\n"))
+	mkCLIStack(t, root, "emobase-deploy-tcas", testSpeciesCompose, strings.Join([]string{
+		"MAIN_SPECIES=Tcas",
+		"PUBLIC_SERVER=http://localhost:9090",
+		"PORTAL_SERVER=https://portal.example.org",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_REALM=ibb",
+		"",
+	}, "\n"))
+
+	cmd := New()
+	var out, errb bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&errb)
+	cmd.SetArgs([]string{
+		"--workspace", root, "--no-color",
+		"domain", "plan",
+		"--auth", "https://auth.example.org/keycloak",
+		"--species", "Tcas=https://tcas.example.org",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("%v\n%s", err, errb.String())
+	}
+	got := out.String()
+	for _, want := range []string{"species:emobase-deploy-tcas", "https://tcas.example.org", "https://auth.example.org/keycloak"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "portal") || strings.Contains(got, "PORTAL_SERVER") {
+		t.Fatalf("species-only plan must not mention the portal:\n%s", got)
+	}
+
+	cmd = New()
+	cmd.SetOut(&out)
+	cmd.SetErr(&errb)
+	cmd.SetArgs([]string{"--workspace", root, "--no-color", "domain", "plan", "--portal", "https://portal.example.org"})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "no emobase-portal-deploy checkout") {
+		t.Fatalf("--portal error = %v", err)
 	}
 }
 
