@@ -302,7 +302,7 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 	}
 	if strings.TrimSpace(o.species) == "" {
 		if a.Yes {
-			return fmt.Errorf("pass --species CODE (for example --species Tcas)")
+			return fmt.Errorf("pass --species CODE (e.g. --species Tcas)")
 		}
 		code, err := promptRequired(cmd, "Species code", "Tcas")
 		if err != nil {

@@ -106,7 +106,7 @@ func promptRequired(cmd *cobra.Command, label, example string) (string, error) {
 		if example == "" {
 			fmt.Fprintf(out, "%s: ", label)
 		} else {
-			fmt.Fprintf(out, "%s (for example %s): ", label, example)
+			fmt.Fprintf(out, "%s (e.g. %s): ", label, example)
 		}
 		line, err := readPromptLine(cmd.InOrStdin())
 		if err != nil && line == "" {
