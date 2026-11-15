@@ -275,6 +275,7 @@ running, `emobase up` or `emobase bootstrap` creates the realm later.
 
 Command-level details:
 
+- [Deployment runbook](https://github.com/EMOBase/emobase-docs/blob/main/DEPLOYMENT.md)
 - [Infra init reference](https://github.com/EMOBase/emobase-infra/blob/main/INIT.md)
 - [Portal init reference](https://github.com/EMOBase/emobase-portal-deploy/blob/main/INIT.md)
 - [Species init reference](https://github.com/EMOBase/emobase-deploy/blob/dev/INIT.md)
