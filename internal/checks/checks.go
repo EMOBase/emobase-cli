@@ -260,6 +260,7 @@ func Run(w *workspace.Workspace) *Report {
 	}
 	checkRealmGroups(r, w)
 	checkSpeciesPortalURL(r, w)
+	checkSpeciesPortalInternalURL(r, w)
 	checkTrailingSlashes(r, w)
 	checkUniqueness(r, w)
 	checkLoopbackPorts(r, w)
@@ -518,6 +519,38 @@ func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
 			Message:  fmt.Sprintf("PORTAL_SERVER (%s) differs from the local portal (%s)", got, portalURL),
 			Hint:     "`emobase doctor --fix --yes` points this species at the local portal",
 			apply:    setter(sp, "PORTAL_SERVER", portalURL, false),
+		})
+	}
+}
+
+// checkSpeciesPortalInternalURL warns when a species on the portal's own Docker
+// host would reach the portal through the public URL. Compose falls back to
+// PORTAL_SERVER, which may not resolve or route back to the host from inside a
+// container.
+func checkSpeciesPortalInternalURL(r *Report, w *workspace.Workspace) {
+	if w.Portal == nil || w.Portal.MissingEnv {
+		// External portal: the compose fallback to PORTAL_SERVER is correct.
+		return
+	}
+	for _, sp := range w.Species {
+		if sp.MissingEnv {
+			continue
+		}
+		public, ok := sp.Get("PORTAL_SERVER")
+		if !ok || public == "" {
+			continue
+		}
+		internal, hasInternal := sp.Get("PORTAL_INTERNAL_URL")
+		if hasInternal && internal != "" && spec.NormalizeURL(internal) != spec.NormalizeURL(public) {
+			continue
+		}
+		r.add(Finding{
+			Check:    "species.portal_internal_url",
+			Scope:    scopeOf(sp),
+			Severity: Warn,
+			Fix:      FixNone,
+			Message:  "the portal runs on this host, but PORTAL_INTERNAL_URL falls back to the public URL",
+			Hint:     "set PORTAL_INTERNAL_URL to an address containers can reach, for example http://host.docker.internal:<portal port>",
 		})
 	}
 }

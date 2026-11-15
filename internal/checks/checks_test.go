@@ -407,6 +407,33 @@ func TestInternalLoopbackWarns(t *testing.T) {
 	}
 }
 
+func TestSameHostPortalInternalURLWarns(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PORTAL_INTERNAL_URL"] = "http://localhost:9080"
+	f := find(Run(discover(t, root, envs)), "species.portal_internal_url")
+	if f == nil || f.Severity != Warn {
+		t.Fatalf("public internal URL finding = %#v", f)
+	}
+
+	delete(envs["emobase-deploy-tcas"], "PORTAL_INTERNAL_URL")
+	f = find(Run(discover(t, root, envs)), "species.portal_internal_url")
+	if f == nil || f.Severity != Warn {
+		t.Fatalf("missing internal URL finding = %#v", f)
+	}
+}
+
+func TestRemotePortalDoesNotWarnAboutInternalURL(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PORTAL_INTERNAL_URL"] = "http://localhost:9080"
+	if err := os.RemoveAll(filepath.Join(root, "emobase-portal-deploy")); err != nil {
+		t.Fatal(err)
+	}
+	delete(envs, "emobase-portal-deploy")
+	if f := find(Run(discover(t, root, envs)), "species.portal_internal_url"); f != nil {
+		t.Fatalf("remote portal finding = %#v", f)
+	}
+}
+
 func TestChangeJSONMasksSecrets(t *testing.T) {
 	c := Change{Scope: "portal", Key: "MYSQL_ROOT_PASSWORD", Old: "old-secret", New: "new-secret", Secret: true}
 	b, err := json.Marshal(c)
