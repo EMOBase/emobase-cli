@@ -127,6 +127,25 @@ func TestDomainPlanPortalChangeUpdatesSpeciesPortalServer(t *testing.T) {
 	}
 }
 
+func TestDomainPlanPreservesInternalPortalURL(t *testing.T) {
+	ws := domainFixture()
+	ws.Species[0].Env.Set("PORTAL_INTERNAL_URL", "http://localhost:9080")
+
+	vals := domainValuesFor(ws)
+	vals.portal = "https://portal.example.org"
+
+	plan, err := buildDomainPlan(ws, vals)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if hasDomainChange(plan, "species:emobase-deploy-tcas/PORTAL_INTERNAL_URL") {
+		t.Fatal("portal URL change must not rewrite the internal URL")
+	}
+	if got, _ := ws.Species[0].Get("PORTAL_INTERNAL_URL"); got != "http://localhost:9080" {
+		t.Fatalf("internal URL = %q", got)
+	}
+}
+
 func TestDomainPlanSpeciesChangeIsLocal(t *testing.T) {
 	ws := domainFixture()
 	vals := domainValuesFor(ws)

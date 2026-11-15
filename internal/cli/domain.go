@@ -392,16 +392,9 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 				Stack: sp, Scope: domainScope(sp),
 				Key: "PORTAL_SERVER", Old: mustGet(sp, "PORTAL_SERVER"), New: portalNew,
 			})
-			if internal, ok := sp.Get("PORTAL_INTERNAL_URL"); ok {
-				if normalized, err := normalizeOptionalOrigin(internal); err == nil {
-					if oldPortal, err := normalizeOptionalOrigin(mustGet(ws.Portal, "PUBLIC_SERVER")); err == nil && oldPortal != "" && normalized == oldPortal {
-						plan.Changes = append(plan.Changes, domainChange{
-							Stack: sp, Scope: domainScope(sp),
-							Key: "PORTAL_INTERNAL_URL", Old: internal, New: portalNew,
-						})
-					}
-				}
-			}
+			// PORTAL_INTERNAL_URL is a container-facing address. It is not
+			// necessarily the public portal origin and must not be rewritten
+			// when the public URL changes.
 		}
 		if speciesOld != speciesNew {
 			plan.Changes = append(plan.Changes, domainChange{
