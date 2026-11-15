@@ -276,7 +276,7 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	f.StringVar(&o.publicServer, "public-server", "", "species PUBLIC_SERVER")
 	f.StringVar(&o.httpPort, "http-port", "", "host port (default 9090)")
 	f.StringVar(&o.portalServer, "portal-server", "", "portal URL when there is no local portal checkout")
-	f.StringVar(&o.portalInternalURL, "portal-internal-url", "", "portal URL reachable from inside containers")
+	f.StringVar(&o.portalInternalURL, "portal-internal-url", "", "override the container-facing portal URL (derived automatically for a local portal)")
 	f.StringVar(&o.realm, "keycloak-realm", "", "join:REALM to reuse an existing realm, new:REALM to create one, or a plain new realm name")
 	f.StringVar(&o.realm, "realm", "", "alias for --keycloak-realm")
 	f.StringVar(&o.clientID, "keycloak-client-id", "", "client ID (copied when joining, generated when new)")
