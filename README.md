@@ -318,28 +318,30 @@ The CLI records which external resources it created in:
 <workspace>/.emobase/state.json
 ```
 
-This is not a copy of `.env`. It records ownership: which database and realm
-belong to which checkout. It contains no secrets and is specific to one
-workspace/server, so do not commit it.
+This is not a copy of `.env`. It records ownership: which database, realm and
+Elasticsearch index prefix belong to which checkout. It contains no secrets and
+is specific to one workspace/server, so do not commit it.
 
 - `create` records the stack with its resource names but `created: false`.
 - `species setup` and `bootstrap` mark resources created after success.
-- `species remove --purge` stops the stack, drops its database, removes the
-  checkout directory and uses the ledger. If a resource was never created, it
-  does not require MySQL or Keycloak. If cleanup cannot run, it marks the entry
+- `species remove --purge` stops the stack, drops its database, deletes its
+  `<prefix>-*` Elasticsearch indices, removes the checkout directory and uses
+  the ledger. If a resource was never created, it does not require MySQL,
+  Keycloak or Elasticsearch. If cleanup cannot run, it marks the entry
   `pending_cleanup`. Add `--keep-dir` to keep the directory.
-- `emobase prune` removes databases and dedicated realms recorded in the
-  ledger for removed checkouts. It never guesses from names and never touches
-  resources that are not recorded.
-- Shared realms are skipped while any active checkout still uses them.
+- `emobase prune` removes databases, dedicated realms and index prefixes
+  recorded in the ledger for removed checkouts. It never guesses from names and
+  never touches resources that are not recorded.
+- Shared realms and shared index prefixes are skipped while any active checkout
+  still uses them.
 
 Example:
 
 ```sh
 emobase sync                 # create missing databases/realms for active stacks
 emobase sync --dry-run
-emobase prune                # show state-owned cleanup
-emobase prune --yes          # execute it
+emobase prune                # show the cleanup and confirm before deleting
+emobase prune --yes          # delete without prompting
 ```
 
 `sync` does not start containers. `bootstrap` syncs and starts, but never
@@ -360,7 +362,7 @@ prunes.
 | `emobase species remove <ref> [--purge --yes] [--keep-dir]` | Show (or execute) teardown commands and remove the checkout |
 | `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
 | `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
-| `emobase prune [--yes]` | Remove state-owned resources left by deleted stacks |
+| `emobase prune [--yes]` | Remove state-owned databases, realms and index prefixes left by deleted stacks |
 | `emobase up [--only infra\|portal\|species] [--pull]` | Start in dependency order |
 | `emobase down [--only ...]` | Stop dependants first |
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
