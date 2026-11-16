@@ -61,6 +61,7 @@ func matrixFixture(t *testing.T) string {
 	mkCLIStack(t, root, "emobase-deploy-tcas", testSpeciesCompose, strings.Join([]string{
 		"MAIN_SPECIES=Tcas",
 		"PUBLIC_SERVER=http://localhost:9090",
+		"EMOBASE_ES_INDEX_PREFIX=tcas",
 		"KEYCLOAK_REALM=ibb_tcas",
 		"KEYCLOAK_CLIENT_ID=ibb-client",
 		"KEYCLOAK_CLIENT_SECRET=dedicated-secret",

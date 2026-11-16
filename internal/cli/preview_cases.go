@@ -46,6 +46,7 @@ HTTP_PORT=9090
 PORTAL_SERVER=https://portal.example.org
 PORTAL_INTERNAL_URL=http://portal:3000
 DIRECTUS_DB_DATABASE=directus_tcas
+EMOBASE_ES_INDEX_PREFIX=tcas
 DIRECTUS_SECRET=directus-tcas-secret
 DIRECTUS_ADMIN_EMAIL=admin@example.org
 DIRECTUS_ADMIN_PASSWORD=directus-admin-secret
@@ -122,6 +123,7 @@ func conflictWorkspace() *workspace.Workspace {
 	dmel.Env.Set("KEYCLOAK_CLIENT_SECRET", "dmel-secret")
 	dmel.Env.Set("INTERNAL_KEYCLOAK_ISSUER", "http://keycloak:8080/keycloak/realms/emobase-dmel")
 	dmel.Env.Set("DIRECTUS_DB_DATABASE", "directus_tcas")
+	dmel.Env.Set("EMOBASE_ES_INDEX_PREFIX", "dmel")
 	dmel.Env.Set("HTTP_PORT", "9090")
 	dmel.Env.Set("COMPOSE_PROJECT_NAME", "tcas")
 	ws.Species = append(ws.Species, dmel)

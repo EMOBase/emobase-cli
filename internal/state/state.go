@@ -24,15 +24,23 @@ type Realm struct {
 	Created bool   `json:"created"`
 }
 
+// Elasticsearch is the index prefix owned by one species stack. The shared
+// Elasticsearch instance is not owned by any stack.
+type Elasticsearch struct {
+	Prefix  string `json:"prefix"`
+	Created bool   `json:"created"`
+}
+
 // Stack is one checkout's ownership record.
 type Stack struct {
-	Role           string    `json:"role"`
-	Name           string    `json:"name"`
-	Dir            string    `json:"dir"`
-	ComposeProject string    `json:"compose_project,omitempty"`
-	Status         string    `json:"status"` // scaffolded, active, pending_cleanup
-	Database       *Database `json:"database,omitempty"`
-	Realm          *Realm    `json:"realm,omitempty"`
+	Role           string         `json:"role"`
+	Name           string         `json:"name"`
+	Dir            string         `json:"dir"`
+	ComposeProject string         `json:"compose_project,omitempty"`
+	Status         string         `json:"status"` // scaffolded, active, pending_cleanup
+	Database       *Database      `json:"database,omitempty"`
+	Realm          *Realm         `json:"realm,omitempty"`
+	Elasticsearch  *Elasticsearch `json:"elasticsearch,omitempty"`
 }
 
 // File is the workspace ownership ledger.

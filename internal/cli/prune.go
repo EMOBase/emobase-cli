@@ -18,15 +18,16 @@ type pruneAction struct {
 	key   string
 	db    string
 	realm string
+	es    string
 }
 
 func (a *App) pruneCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "prune",
 		Short: "Remove state-owned resources left by deleted stacks",
-		Long: `prune removes databases and dedicated realms recorded in the workspace
-ownership ledger (.emobase/state.json) for checkouts that are gone or marked
-pending cleanup.
+		Long: `prune removes databases, dedicated realms and Elasticsearch index prefixes
+recorded in the workspace ownership ledger (.emobase/state.json) for checkouts
+that are gone or marked pending cleanup.
 
 It never uses name patterns to guess ownership. Resources absent from the
 ledger are left untouched. Shared realms are skipped while any active checkout
@@ -63,7 +64,7 @@ still uses them.`,
 			}
 
 			fmt.Fprintln(out, title("Resources to prune"))
-			dbCount, realmCount := 0, 0
+			dbCount, realmCount, esCount := 0, 0, 0
 			for _, act := range actions {
 				if act.db != "" {
 					dbCount++
@@ -72,6 +73,10 @@ still uses them.`,
 				if act.realm != "" {
 					realmCount++
 					fmt.Fprintf(out, "  realm     %-30s owner %s\n", act.realm, act.key)
+				}
+				if act.es != "" {
+					esCount++
+					fmt.Fprintf(out, "  indices   %-30s owner %s\n", act.es+"-*", act.key)
 				}
 			}
 			for _, msg := range blocked {
@@ -82,6 +87,9 @@ still uses them.`,
 			}
 			if realmCount > 0 && !keycloakRunning(cmd.Context(), ws) {
 				return fmt.Errorf("infra Keycloak is not running; start it first with: emobase up --only infra")
+			}
+			if esCount > 0 && !infraServiceRunning(cmd.Context(), ws, "elasticsearch") {
+				return fmt.Errorf("infra Elasticsearch is not running; start it first with: emobase up --only infra")
 			}
 			if !a.Yes {
 				if !canPrompt(cmd.InOrStdin()) {
@@ -116,7 +124,15 @@ still uses them.`,
 						entry.Realm.Created = false
 					}
 				}
-				if (entry.Database == nil || !entry.Database.Created) && (entry.Realm == nil || !entry.Realm.Created) {
+				if act.es != "" {
+					if err := r.DeleteESIndices(ws.Infra.Dir, act.es); err != nil {
+						return err
+					}
+					if entry.Elasticsearch != nil {
+						entry.Elasticsearch.Created = false
+					}
+				}
+				if (entry.Database == nil || !entry.Database.Created) && (entry.Realm == nil || !entry.Realm.Created) && (entry.Elasticsearch == nil || !entry.Elasticsearch.Created) {
 					ledger.Delete(act.key)
 				}
 				if err := ledger.Save(ws.Root); err != nil {
@@ -156,6 +172,7 @@ func planPrune(ws *workspace.Workspace, ledger *state.File) ([]pruneAction, []st
 		act := pruneAction{key: key}
 		ownedDB := entry.Database != nil && entry.Database.Created
 		ownedRealm := entry.Realm != nil && entry.Realm.Created && entry.Realm.Owner == key
+		ownedES := entry.Elasticsearch != nil && entry.Elasticsearch.Created && entry.Elasticsearch.Prefix != ""
 		if ownedDB {
 			act.db = entry.Database.Name
 		}
@@ -166,8 +183,15 @@ func planPrune(ws *workspace.Workspace, ledger *state.File) ([]pruneAction, []st
 				act.realm = entry.Realm.Name
 			}
 		}
-		if act.db == "" && act.realm == "" {
-			if ownedDB || ownedRealm {
+		if ownedES {
+			if esPrefixInUse(ws, ledger, key, entry.Elasticsearch.Prefix) {
+				blocked = append(blocked, fmt.Sprintf("index prefix %q is still used by an active checkout", entry.Elasticsearch.Prefix))
+			} else {
+				act.es = entry.Elasticsearch.Prefix
+			}
+		}
+		if act.db == "" && act.realm == "" && act.es == "" {
+			if ownedDB || ownedRealm || ownedES {
 				// The entry still owns a resource that could not be pruned;
 				// keep it so a later prune can finish the cleanup.
 				continue
@@ -178,6 +202,30 @@ func planPrune(ws *workspace.Workspace, ledger *state.File) ([]pruneAction, []st
 		actions = append(actions, act)
 	}
 	return actions, stale, blocked, nil
+}
+
+func esPrefixInUse(ws *workspace.Workspace, ledger *state.File, ownerKey, prefix string) bool {
+	active := func(st *workspace.Stack) bool {
+		entry := ledger.Stacks[stackKey(st)]
+		return entry == nil || entry.Status != "pending_cleanup"
+	}
+	for _, sp := range ws.Species {
+		if !active(sp) {
+			continue
+		}
+		if p := stackESPrefix(sp); p == prefix {
+			return true
+		}
+	}
+	for key, entry := range ledger.Stacks {
+		if key == ownerKey || entry.Elasticsearch == nil || entry.Status == "pending_cleanup" {
+			continue
+		}
+		if entry.Elasticsearch.Prefix == prefix {
+			return true
+		}
+	}
+	return false
 }
 
 func realmInUse(ws *workspace.Workspace, ledger *state.File, ownerKey, realm string) bool {

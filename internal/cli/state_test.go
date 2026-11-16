@@ -29,13 +29,23 @@ func TestStackLedgerTracksResources(t *testing.T) {
 	if portal == nil || portal.Database == nil || portal.Database.Name != "emobase_genomics" {
 		t.Fatalf("portal state = %#v", portal)
 	}
+	if portal.Elasticsearch != nil {
+		t.Fatalf("portal must not own an Elasticsearch prefix: %#v", portal.Elasticsearch)
+	}
 	if portal.Realm == nil || portal.Realm.Owner != "portal" || portal.Realm.Created {
 		t.Fatalf("portal realm = %#v", portal.Realm)
+	}
+	species := ledger.Stacks["species:emobase-deploy-tcas"]
+	if species == nil || species.Elasticsearch == nil || species.Elasticsearch.Prefix != "tcas" || species.Elasticsearch.Created {
+		t.Fatalf("species state = %#v", species)
 	}
 	if err := markDatabaseCreated(ws, ws.Portal, true); err != nil {
 		t.Fatal(err)
 	}
 	if err := markRealmCreated(ws, ws.Portal, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := markESCreated(ws, ws.Species[0], true); err != nil {
 		t.Fatal(err)
 	}
 	ledger, err = state.Load(root)
@@ -45,6 +55,10 @@ func TestStackLedgerTracksResources(t *testing.T) {
 	portal = ledger.Stacks["portal"]
 	if !portal.Database.Created || !portal.Realm.Created {
 		t.Fatalf("created flags = %#v", portal)
+	}
+	species = ledger.Stacks["species:emobase-deploy-tcas"]
+	if !species.Elasticsearch.Created {
+		t.Fatalf("es created flag = %#v", species.Elasticsearch)
 	}
 }
 
@@ -106,6 +120,10 @@ func TestPlanPruneOnlyUsesLedgerResources(t *testing.T) {
 					Owner:   "species:gone",
 					Created: true,
 				},
+				Elasticsearch: &state.Elasticsearch{
+					Prefix:  "gone",
+					Created: true,
+				},
 			},
 		},
 	}
@@ -117,8 +135,46 @@ func TestPlanPruneOnlyUsesLedgerResources(t *testing.T) {
 	if len(stale) != 0 || len(actions) != 1 {
 		t.Fatalf("actions = %#v, stale = %#v", actions, stale)
 	}
-	if actions[0].db != "directus_gone" || actions[0].realm != "emobase-gone" {
+	if actions[0].db != "directus_gone" || actions[0].realm != "emobase-gone" || actions[0].es != "gone" {
 		t.Fatalf("action = %#v", actions[0])
+	}
+}
+
+func TestPlanPruneBlocksSharedESPrefix(t *testing.T) {
+	root := t.TempDir()
+	ledger := &state.File{
+		Version: state.Version,
+		Stacks: map[string]*state.Stack{
+			"species:gone": {
+				Role:   "species",
+				Name:   "gone",
+				Dir:    "gone",
+				Status: "pending_cleanup",
+				Elasticsearch: &state.Elasticsearch{
+					Prefix:  "shared",
+					Created: true,
+				},
+			},
+			"species:live": {
+				Role:          "species",
+				Name:          "live",
+				Dir:           "live",
+				Status:        "active",
+				Elasticsearch: &state.Elasticsearch{Prefix: "shared"},
+			},
+		},
+	}
+	actions, _, blocked, err := planPrune(&workspace.Workspace{Root: root}, ledger)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(blocked) == 0 {
+		t.Fatal("expected the shared prefix to be blocked")
+	}
+	for _, act := range actions {
+		if act.es != "" {
+			t.Fatalf("shared prefix was scheduled for deletion: %#v", act)
+		}
 	}
 }
 

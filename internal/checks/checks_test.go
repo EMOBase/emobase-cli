@@ -60,6 +60,7 @@ func speciesEnv() map[string]string {
 		"PORTAL_SERVER":                 "http://localhost:9080",
 		"PORTAL_INTERNAL_URL":           "http://host.docker.internal:9080",
 		"DIRECTUS_DB_DATABASE":          "directus_tcas",
+		"EMOBASE_ES_INDEX_PREFIX":       "tcas",
 		"DIRECTUS_SECRET":               "d-secret",
 		"DIRECTUS_ADMIN_EMAIL":          "admin@example.org",
 		"DIRECTUS_ADMIN_PASSWORD":       "d-admin",
@@ -296,6 +297,7 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 		"PORTAL_SERVER":                 "http://localhost:9080",
 		"PORTAL_INTERNAL_URL":           "http://host.docker.internal:9080",
 		"DIRECTUS_DB_DATABASE":          "directus_tcas",
+		"EMOBASE_ES_INDEX_PREFIX":       "dmel",
 		"DIRECTUS_SECRET":               "x",
 		"DIRECTUS_ADMIN_EMAIL":          "a@b.c",
 		"DIRECTUS_ADMIN_PASSWORD":       "x",
@@ -328,6 +330,38 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 	}
 	if find(rep, "unique.directus_db") == nil {
 		t.Fatal("expected unique.directus_db")
+	}
+}
+
+func TestESIndexPrefixValidation(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["EMOBASE_ES_INDEX_PREFIX"] = "Tcas!"
+	if f := find(Run(discover(t, root, envs)), "elasticsearch.prefix_invalid"); f == nil {
+		t.Fatal("expected elasticsearch.prefix_invalid")
+	}
+
+	envs["emobase-deploy-tcas"]["EMOBASE_ES_INDEX_PREFIX"] = "genomics"
+	if f := find(Run(discover(t, root, envs)), "elasticsearch.prefix_reserved"); f == nil {
+		t.Fatal("expected elasticsearch.prefix_reserved")
+	}
+}
+
+func TestDuplicateESIndexPrefix(t *testing.T) {
+	root, envs := fixture(t)
+	dmel := map[string]string{}
+	for k, v := range speciesEnv() {
+		dmel[k] = v
+	}
+	dmel["MAIN_SPECIES"] = "Dmel"
+	dmel["PUBLIC_SERVER"] = "http://localhost:9091"
+	dmel["HTTP_PORT"] = "9091"
+	dmel["COMPOSE_PROJECT_NAME"] = "dmel"
+	dmel["DIRECTUS_DB_DATABASE"] = "directus_dmel"
+	dmel["EMOBASE_ES_INDEX_PREFIX"] = "tcas"
+	mkDir(t, root, "emobase-deploy-dmel", speciesCompose, dmel)
+
+	if f := find(Run(discover(t, root, envs)), "unique.es_index_prefix"); f == nil {
+		t.Fatal("expected unique.es_index_prefix")
 	}
 }
 

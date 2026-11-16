@@ -36,8 +36,8 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 	for _, c := range containers {
 		byService[c.Service] = c
 	}
-	mysqlUp, keycloakUp := false, false
-	for _, svc := range []string{"mysql", "keycloak"} {
+	up := map[string]bool{}
+	for _, svc := range []string{"mysql", "keycloak", "elasticsearch"} {
 		c, ok := byService[svc]
 		if !ok {
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
@@ -49,9 +49,9 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		if state == "" {
 			state = c.Status
 		}
-		up := isRunning(state, c.Status)
+		running := isRunning(state, c.Status)
 		switch {
-		case !up:
+		case !running:
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
 				fmt.Sprintf("%s container is not running (%s)", svc, state),
 				"`emobase up --only infra`"))
@@ -60,14 +60,9 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 				fmt.Sprintf("%s container is unhealthy", svc),
 				fmt.Sprintf("`cd %s && docker compose logs --tail=100 %s`", ws.Infra.Dir, svc)))
 		}
-		if up {
-			if svc == "mysql" {
-				mysqlUp = true
-			} else {
-				keycloakUp = true
-			}
-		}
+		up[svc] = running
 	}
+	mysqlUp, keycloakUp := up["mysql"], up["keycloak"]
 
 	runner := &scaffold.Runner{Stdout: io.Discard, Stderr: io.Discard}
 

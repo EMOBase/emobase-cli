@@ -35,6 +35,14 @@ func stackDatabase(st *workspace.Stack) string {
 	}
 }
 
+func stackESPrefix(st *workspace.Stack) string {
+	if st == nil || st.Role != workspace.RoleSpecies {
+		return ""
+	}
+	v, _ := st.Get("EMOBASE_ES_INDEX_PREFIX")
+	return strings.TrimSpace(v)
+}
+
 func realmOwner(ws *workspace.Workspace, realm, owner string) string {
 	if owner != "" {
 		return owner
@@ -77,6 +85,14 @@ func syncStackLedger(root string, ws *workspace.Workspace, st *workspace.Stack, 
 		}
 	} else {
 		entry.Database = nil
+	}
+
+	if prefix := stackESPrefix(st); prefix != "" {
+		if entry.Elasticsearch == nil || entry.Elasticsearch.Prefix != prefix {
+			entry.Elasticsearch = &state.Elasticsearch{Prefix: prefix}
+		}
+	} else {
+		entry.Elasticsearch = nil
 	}
 
 	realm, _ := st.Get("KEYCLOAK_REALM")
@@ -126,6 +142,14 @@ func markRealmCreated(ws *workspace.Workspace, st *workspace.Stack, created bool
 	return updateStackLedger(ws, st, func(e *state.Stack) {
 		if e.Realm != nil {
 			e.Realm.Created = created
+		}
+	})
+}
+
+func markESCreated(ws *workspace.Workspace, st *workspace.Stack, created bool) error {
+	return updateStackLedger(ws, st, func(e *state.Stack) {
+		if e.Elasticsearch != nil {
+			e.Elasticsearch.Created = created
 		}
 	})
 }
@@ -188,6 +212,12 @@ func addStateFindings(ws *workspace.Workspace, rep *checks.Report) {
 			rep.Add(checks.Advisory("state.realm_mismatch", checks.ScopeOf(st), checks.Warn,
 				fmt.Sprintf("state records realm %q but .env says %q", entry.Realm.Name, realm),
 				"rerun the stack setup or fix the state ledger manually"))
+		}
+		prefix := stackESPrefix(st)
+		if prefix != "" && entry.Elasticsearch != nil && entry.Elasticsearch.Prefix != prefix {
+			rep.Add(checks.Advisory("state.es_prefix_mismatch", checks.ScopeOf(st), checks.Warn,
+				fmt.Sprintf("state records index prefix %q but .env says %q", entry.Elasticsearch.Prefix, prefix),
+				"delete the old indices deliberately with emobase-infra/scripts/delete-es-indices.sh, then run emobase sync"))
 		}
 	}
 	for key, entry := range ledger.Stacks {

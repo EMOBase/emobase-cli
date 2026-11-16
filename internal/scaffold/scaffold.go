@@ -115,9 +115,11 @@ func (r *Runner) Init(dir string, args ...string) error {
 	return r.exec(dir, []string{"EMOBASE_CLI=1"}, "./init.sh", args...)
 }
 
-// Up starts a stack and waits for health checks.
+// Up starts a stack and waits for health checks. --remove-orphans clears
+// containers left behind by services that a stack no longer defines, such as
+// the per-species Elasticsearch that moved to emobase-infra.
 func (r *Runner) Up(dir string) error {
-	return r.Compose(dir, "up", "-d", "--wait")
+	return r.Compose(dir, "up", "-d", "--wait", "--remove-orphans")
 }
 
 // Pull pulls every Compose profile in dir.
@@ -174,6 +176,13 @@ func (r *Runner) DropDatabase(infraDir, db string) error {
 // DeleteRealm removes a dedicated realm after prune confirmation.
 func (r *Runner) DeleteRealm(infraDir, realm string) error {
 	return r.Script(infraDir, "./scripts/delete-realm.sh", "--yes", realm)
+}
+
+// DeleteESIndices removes every index under one species prefix from the shared
+// Elasticsearch. The helper only matches <prefix>-*, so the caller must pass an
+// owned prefix.
+func (r *Runner) DeleteESIndices(infraDir, prefix string) error {
+	return r.Script(infraDir, "./scripts/delete-es-indices.sh", "--yes", prefix)
 }
 
 // EnsureRealm creates or updates a realm and adds an origin. It keeps an

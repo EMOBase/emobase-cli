@@ -255,6 +255,7 @@ type speciesOpts struct {
 	species, dir, publicServer, httpPort, portalServer, portalInternalURL string
 	realm, clientID, clientSecret, cocoUser, cocoPass                     string
 	directusDB, containerPrefix, infraDir, portalDir                      string
+	esPrefix                                                              string
 	local, force, clone, apply, dryRun                                    bool
 }
 
@@ -285,6 +286,7 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	f.StringVar(&o.cocoPass, "coco-password", "", "seed user password (copied when joining, generated when new)")
 	f.StringVar(&o.directusDB, "directus-db", "", "Directus database (default directus_<species>)")
 	f.StringVar(&o.containerPrefix, "container-prefix", "", "Compose project/container prefix (default: species slug)")
+	f.StringVar(&o.esPrefix, "es-index-prefix", "", "Elasticsearch index prefix (default: species slug; \"genomics\" is reserved for the portal)")
 	f.StringVar(&o.infraDir, "infra-dir", "", "emobase-infra checkout (default: <workspace>/emobase-infra)")
 	f.StringVar(&o.portalDir, "portal-dir", "", "portal checkout (default: <workspace>/emobase-portal-deploy when present)")
 	f.BoolVar(&o.local, "local", false, "local trial: use localhost URLs")
@@ -374,6 +376,7 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 	add("--coco-password", o.cocoPass)
 	add("--directus-db", o.directusDB)
 	add("--container-prefix", o.containerPrefix)
+	add("--es-index-prefix", o.esPrefix)
 	if o.portalDir != "" {
 		add("--portal-dir", o.portalDir)
 	} else {
@@ -476,6 +479,9 @@ func (a *App) setupSpecies(cmd *cobra.Command, ws *workspace.Workspace, sp *work
 		return err
 	}
 	if !r.DryRun {
+		if err := markESCreated(ws, sp, true); err != nil {
+			return err
+		}
 		if err := markStackStatus(ws, sp, "active"); err != nil {
 			return err
 		}

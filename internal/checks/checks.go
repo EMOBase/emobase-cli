@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,6 +14,10 @@ import (
 	"github.com/EMOBase/emobase-cli/internal/spec"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 )
+
+// esIndexPrefix is the accepted shape of EMOBASE_ES_INDEX_PREFIX. Elasticsearch
+// index names are lowercase and cannot start with '-', '_' or '+'.
+var esIndexPrefix = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // Severity is the impact of a finding.
 type Severity int
@@ -254,6 +259,7 @@ func Run(w *workspace.Workspace) *Report {
 		}
 		checkRequired(r, sp, spec.RequiredSpecies)
 		checkSpeciesProjectName(r, sp)
+		checkESIndexPrefix(r, sp)
 		checkShared(r, w, sp)
 		checkSpeciesRealm(r, sp)
 		checkIssuerKeys(r, sp)
@@ -301,6 +307,36 @@ func checkSpeciesProjectName(r *Report, st *workspace.Stack) {
 		Hint:     fmt.Sprintf("`emobase doctor --fix` sets it to %q", want),
 		apply:    setter(st, "COMPOSE_PROJECT_NAME", want, false),
 	})
+}
+
+// checkESIndexPrefix validates the species' slice of the shared Elasticsearch
+// index namespace. "genomics" belongs to the portal.
+func checkESIndexPrefix(r *Report, st *workspace.Stack) {
+	prefix, ok := st.Get("EMOBASE_ES_INDEX_PREFIX")
+	prefix = strings.TrimSpace(prefix)
+	if !ok || prefix == "" {
+		return // checkRequired reports the missing key
+	}
+	if !esIndexPrefix.MatchString(prefix) {
+		r.add(Finding{
+			Check:    "elasticsearch.prefix_invalid",
+			Scope:    scopeOf(st),
+			Severity: Error,
+			Fix:      FixNone,
+			Message:  fmt.Sprintf("EMOBASE_ES_INDEX_PREFIX %q is not a valid Elasticsearch index prefix", prefix),
+			Hint:     "use lowercase letters, digits, underscore and hyphen, starting with a letter or digit",
+		})
+	}
+	if prefix == "genomics" {
+		r.add(Finding{
+			Check:    "elasticsearch.prefix_reserved",
+			Scope:    scopeOf(st),
+			Severity: Error,
+			Fix:      FixNone,
+			Message:  "EMOBASE_ES_INDEX_PREFIX 'genomics' is reserved for the portal",
+			Hint:     "use the species code, for example tcas",
+		})
+	}
 }
 
 func checkRequired(r *Report, st *workspace.Stack, keys []string) {
@@ -607,7 +643,7 @@ func checkUniqueness(r *Report, w *workspace.Workspace) {
 		}
 	}
 
-	var ports, dbs, servers, projects []entry
+	var ports, dbs, servers, projects, prefixes []entry
 	for _, st := range w.All() {
 		if st.MissingEnv {
 			continue
@@ -622,6 +658,9 @@ func checkUniqueness(r *Report, w *workspace.Workspace) {
 			if v, ok := st.Get("DIRECTUS_DB_DATABASE"); ok {
 				dbs = append(dbs, entry{scopeOf(st), strings.ToLower(v)})
 			}
+			if v, ok := st.Get("EMOBASE_ES_INDEX_PREFIX"); ok {
+				prefixes = append(prefixes, entry{scopeOf(st), strings.TrimSpace(v)})
+			}
 			if st.ProjectName != "" {
 				projects = append(projects, entry{scopeOf(st), st.ProjectName})
 			}
@@ -629,6 +668,7 @@ func checkUniqueness(r *Report, w *workspace.Workspace) {
 	}
 	check("unique.http_port", "HTTP_PORT", ports, Error)
 	check("unique.directus_db", "DIRECTUS_DB_DATABASE", dbs, Error)
+	check("unique.es_index_prefix", "EMOBASE_ES_INDEX_PREFIX", prefixes, Error)
 	check("unique.public_server", "PUBLIC_SERVER", servers, Error)
 	check("unique.compose_project", "Compose project", projects, Error)
 }

@@ -84,8 +84,9 @@ func (a *App) speciesRemoveCmd() *cobra.Command {
 		Use:   "remove <species|checkout>",
 		Short: "Stop a species stack, delete its data and remove the checkout",
 		Long: `Without --purge, remove only prints the exact commands. With --purge --yes it
-stops the stack, deletes its Compose volumes, drops the Directus database and
-removes the checkout directory. Use --keep-dir to keep the directory.
+stops the stack, deletes its Compose volumes, drops the Directus database,
+deletes the species' Elasticsearch indices and removes the checkout directory.
+Use --keep-dir to keep the directory.
 
 A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 		Args: cobra.ExactArgs(1),
@@ -100,11 +101,15 @@ A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 			}
 			out := cmd.OutOrStdout()
 			db, _ := sp.Get("DIRECTUS_DB_DATABASE")
+			esPrefix := stackESPrefix(sp)
 			if !purge {
 				fmt.Fprintf(out, "To remove %s:\n", sp.Name)
 				fmt.Fprintf(out, "  cd %s && docker compose --profile '*' down -v\n", sp.Dir)
 				if ws.Infra != nil && db != "" {
 					fmt.Fprintf(out, "  %s/scripts/drop-database.sh %s\n", ws.Infra.Dir, db)
+				}
+				if ws.Infra != nil && esPrefix != "" {
+					fmt.Fprintf(out, "  %s/scripts/delete-es-indices.sh --yes %s\n", ws.Infra.Dir, esPrefix)
 				}
 				if !keepDir {
 					fmt.Fprintf(out, "  rm -rf %s\n", sp.Dir)
@@ -139,12 +144,19 @@ A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 				if entry.Realm != nil && entry.Realm.Owner == key {
 					entry.Realm.Created = true
 				}
+				if entry.Elasticsearch != nil {
+					entry.Elasticsearch.Created = true
+				}
 			}
 			if db == "" && entry.Database != nil {
 				db = entry.Database.Name
 			}
+			if esPrefix == "" && entry.Elasticsearch != nil {
+				esPrefix = entry.Elasticsearch.Prefix
+			}
 			dbCreated := entry.Database != nil && entry.Database.Created
 			realmOwned := entry.Realm != nil && entry.Realm.Created && entry.Realm.Owner == key
+			esCreated := esPrefix != "" && entry.Elasticsearch != nil && entry.Elasticsearch.Created
 
 			r := &scaffold.Runner{Stdout: out, Stderr: cmd.ErrOrStderr()}
 			if err := r.Destroy(sp.Dir); err != nil {
@@ -166,6 +178,17 @@ A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 			if realmOwned && entry.Realm != nil && entry.Realm.Mode == "dedicated" {
 				pending = true
 				fmt.Fprintln(out, muted("Dedicated realm cleanup deferred to emobase prune."))
+			}
+			if esCreated {
+				if ws.Infra == nil || !infraServiceRunning(cmd.Context(), ws, "elasticsearch") {
+					pending = true
+					fmt.Fprintln(out, muted("Elasticsearch index cleanup deferred: infra Elasticsearch is not running."))
+				} else if err := r.DeleteESIndices(ws.Infra.Dir, esPrefix); err != nil {
+					pending = true
+					fmt.Fprintln(out, muted("Elasticsearch index cleanup deferred: "+err.Error()))
+				} else if entry.Elasticsearch != nil {
+					entry.Elasticsearch.Created = false
+				}
 			}
 
 			if !keepDir {
