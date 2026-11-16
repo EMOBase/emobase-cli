@@ -267,8 +267,10 @@ emobase create species --species Tcas \
 emobase bootstrap
 ```
 
-`--yes` also clones a missing checkout. In a non-interactive run without
-`--yes`, pass `--clone` or clone the repository yourself first.
+`--yes` also clones a missing checkout. Without `--yes`, `create` asks before
+cloning, and that question needs a terminal. In a script, CI job, cron job, or
+any run with redirected input, pass `--clone` explicitly (or clone the
+repository yourself first).
 
 `create portal` and `create species` create or update their own Keycloak realm
 when infra is already running. A species can join the portal realm, join
