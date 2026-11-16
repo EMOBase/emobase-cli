@@ -254,7 +254,7 @@ default without prompting:
 # Local trial without questions.
 emobase --yes create infra --local
 emobase --yes create portal --local
-emobase --yes create species --species Tcas --local --clone
+emobase --yes create species --species Tcas --local
 emobase bootstrap
 
 # Server deployment: answer only the URL questions.
@@ -263,10 +263,12 @@ emobase create infra \
 
 emobase create portal --public-server https://portal.example.org
 emobase create species --species Tcas \
-  --public-server https://tcas.example.org \
-  --clone
+  --public-server https://tcas.example.org
 emobase bootstrap
 ```
+
+`--yes` also clones a missing checkout. In a non-interactive run without
+`--yes`, pass `--clone` or clone the repository yourself first.
 
 `create portal` and `create species` create or update their own Keycloak realm
 when infra is already running. A species can join the portal realm, join
