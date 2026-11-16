@@ -268,9 +268,9 @@ emobase bootstrap
 ```
 
 `--yes` also clones a missing checkout. Without `--yes`, `create` asks before
-cloning, and that question needs a terminal. In a script, CI job, cron job, or
-any run with redirected input, pass `--clone` explicitly (or clone the
-repository yourself first).
+cloning, and that question needs someone at a terminal. Pass `--clone` to
+answer it in advance—useful when a script supplies the other flags itself—or
+clone the repository first.
 
 `create portal` and `create species` create or update their own Keycloak realm
 when infra is already running. A species can join the portal realm, join
