@@ -24,8 +24,9 @@ All published assets and checksums are on the
 
 ## Stable release (recommended)
 
-The install script resolves the newest stable `v*` release, verifies its
-checksum, and installs `emobase` in `/usr/local/bin`:
+The install script detects Linux/macOS and `amd64`/`arm64`, resolves the newest
+stable `v*` release, verifies its checksum, and installs `emobase` in
+`/usr/local/bin`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh | sh

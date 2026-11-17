@@ -25,21 +25,6 @@ Install the latest stable release:
 curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh | sh
 ```
 
-The installer detects Linux/macOS and `amd64`/`arm64`, verifies the release
-checksum, and installs to `/usr/local/bin/emobase`. It uses `sudo` only when
-needed.
-
-Install a specific version, or install for one user without sudo:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
-  | sh -s -- --version 0.2.0
-curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
-  | sh -s -- --user
-```
-
-A deployment host also needs Docker with Compose, `git`, and `python3`.
-
 For the rolling `main` build, manual downloads, or building from source, see
 [INSTALL.md](INSTALL.md).
 
