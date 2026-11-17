@@ -24,64 +24,44 @@ All published assets and checksums are on the
 
 ## Stable release (recommended)
 
-This resolves the newest `v*` release, verifies its checksum, and installs
-`emobase` system-wide in `/usr/local/bin`. The download happens in a temporary
-directory that is removed automatically.
+The install script resolves the newest stable `v*` release, verifies its
+checksum, and installs `emobase` in `/usr/local/bin`:
 
 ```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  os="$(uname -s)"
-  case "$os" in
-    Linux) os=linux ;;
-    Darwin) os=darwin ;;
-    *) echo "unsupported OS: $os" >&2; exit 1 ;;
-  esac
-  case "$(uname -m)" in
-    x86_64|amd64) arch=amd64 ;;
-    arm64|aarch64) arch=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-  esac
-
-  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-    https://github.com/EMOBase/emobase-cli/releases/latest)"
-  ver="${tag##*/v}"
-  base="https://github.com/EMOBase/emobase-cli/releases/download/v${ver}"
-  file="emobase_${ver}_${os}_${arch}.tar.gz"
-
-  curl -fsSLO "$base/$file"
-  curl -fsSLO "$base/checksums.txt"
-  grep " $file\$" checksums.txt > checksum.txt
-  if [ "$os" = linux ]; then
-    sha256sum -c checksum.txt
-  else
-    shasum -a 256 -c checksum.txt
-  fi
-
-  tar -xzf "$file" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh | sh
 ```
 
-### Per-user install (no sudo)
+It uses `sudo` only when the target directory is not writable. The script is
+short and self-contained; you can review it at
+[install.sh](install.sh) before running it.
 
-Use the same block, but replace the final `sudo install ...` line with one of
-these:
+### Installer options
+
+| Option | Effect |
+| --- | --- |
+| `--version VERSION` | Install a specific release, with or without a leading `v` |
+| `--channel latest` | Install the rolling `main` build instead of a stable tag |
+| `--user` | Install into `~/.local/bin` instead of `/usr/local/bin` |
+| `--prefix DIR` | Install into `DIR/bin` |
+| `-h`, `--help` | Show the options |
+
+When piping the script to `sh`, pass options after `sh -s --`:
 
 ```sh
-# Linux
-install -D -m 0755 emobase "$HOME/.local/bin/emobase"
+# Pin a version
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --version 0.2.0
 
-# macOS
-mkdir -p "$HOME/.local/bin"
-install -m 0755 emobase "$HOME/.local/bin/emobase"
+# Per-user install, no sudo
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --user
+
+# Custom prefix
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --prefix /opt/emobase
 ```
 
-Then make sure `~/.local/bin` is on `PATH`:
+If you use `--user`, add `~/.local/bin` to `PATH`:
 
 ```sh
 export PATH="$HOME/.local/bin:$PATH"
@@ -89,71 +69,40 @@ export PATH="$HOME/.local/bin:$PATH"
 
 Add that line to `~/.zshrc` or `~/.bashrc` to keep it.
 
-### Pin a specific version
-
-To install a version other than the current stable release, replace the two
-tag-resolution lines in the script:
-
-```sh
-tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-  https://github.com/EMOBase/emobase-cli/releases/latest)"
-ver="${tag##*/v}"
-```
-
-with the version from the releases page, without the leading `v`:
-
-```sh
-ver=0.2.0
-```
-
-The rest of the script is unchanged.
-
 ## Rolling `main` build (pre-release)
 
 Every push to `main` publishes a `latest` release with stable asset names such
 as `emobase_linux_amd64.tar.gz`. It follows the newest commit and is not
 reproducible, so use a tagged release for production.
 
-`emobase --version` reports `main-<commit>` for these builds.
-
 ```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  os="$(uname -s)"
-  case "$os" in
-    Linux) os=linux ;;
-    Darwin) os=darwin ;;
-    *) echo "unsupported OS: $os" >&2; exit 1 ;;
-  esac
-  case "$(uname -m)" in
-    x86_64|amd64) arch=amd64 ;;
-    arm64|aarch64) arch=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-  esac
-
-  base="https://github.com/EMOBase/emobase-cli/releases/download/latest"
-  file="emobase_${os}_${arch}.tar.gz"
-
-  curl -fsSLO "$base/$file"
-  curl -fsSLO "$base/checksums.txt"
-  grep " $file\$" checksums.txt > checksum.txt
-  if [ "$os" = linux ]; then
-    sha256sum -c checksum.txt
-  else
-    shasum -a 256 -c checksum.txt
-  fi
-
-  tar -xzf "$file" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --channel latest
 ```
 
-For a per-user install, use the replacement commands in
-[Per-user install](#per-user-install-no-sudo) above.
+`emobase --version` reports `main-<commit>` for these builds.
+
+## Manual download and verification
+
+If you prefer not to run the installer, download the archive and checksum file
+directly. This example uses the stable `v0.2.0` Linux `amd64` build:
+
+```sh
+ver=0.2.0
+os=linux
+arch=amd64
+base="https://github.com/EMOBase/emobase-cli/releases/download/v${ver}"
+file="emobase_${ver}_${os}_${arch}.tar.gz"
+
+curl -fsSLO "$base/$file"
+curl -fsSLO "$base/checksums.txt"
+grep " $file\$" checksums.txt > checksum.txt
+sha256sum -c checksum.txt       # macOS: shasum -a 256 -c checksum.txt
+
+tar -xzf "$file" emobase
+sudo install -m 0755 emobase /usr/local/bin/emobase
+emobase --version
+```
 
 ## Build from source
 
@@ -209,28 +158,6 @@ scp dist/emobase-linux-amd64 you@server:/tmp/emobase
 ssh you@server 'install -D -m 0755 /tmp/emobase ~/.local/bin/emobase'
 ```
 
-## Manual download and verification
-
-If you prefer not to pipe a script, download the archive and checksum file
-directly. This example uses the stable `v0.2.0` Linux `amd64` build:
-
-```sh
-ver=0.2.0
-os=linux
-arch=amd64
-base="https://github.com/EMOBase/emobase-cli/releases/download/v${ver}"
-file="emobase_${ver}_${os}_${arch}.tar.gz"
-
-curl -fsSLO "$base/$file"
-curl -fsSLO "$base/checksums.txt"
-grep " $file\$" checksums.txt > checksum.txt
-sha256sum -c checksum.txt       # macOS: shasum -a 256 -c checksum.txt
-
-tar -xzf "$file" emobase
-sudo install -m 0755 emobase /usr/local/bin/emobase
-emobase --version
-```
-
 ## Verify the installation
 
 ```sh
@@ -248,8 +175,14 @@ Expected version formats:
 
 ## Upgrade
 
-Rerun the stable install script to replace the binary with the current stable
-release. For a pinned version, change `ver=` and rerun the same block.
+Rerun the stable install one-liner to replace the binary with the current
+stable release:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh | sh
+```
+
+For a pinned version, change `--version`; for a per-user install, add `--user`.
 
 `emobase update` updates the deployment checkouts and containers; it does not
 replace the CLI binary itself.
@@ -277,5 +210,7 @@ from the binary and are not removed by uninstalling `emobase`.
 - **Checksum mismatch** — make sure the archive and `checksums.txt` come from
   the same release and re-download both. Do not install an archive that fails
   verification.
+- **Permission denied** — rerun with `--user`, or make sure `sudo` is available
+  for a system-wide install.
 - **Docker errors** — installing the CLI does not install Docker. Deployment
   commands require Docker with Compose, `git`, and `python3` on the host.

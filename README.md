@@ -19,56 +19,29 @@ to touch.
 
 ## Install
 
-Install the latest stable release. Prebuilt binaries are available for Linux
-and macOS on `amd64` and `arm64`; all releases are on the
-[releases page](https://github.com/EMOBase/emobase-cli/releases).
+Install the latest stable release:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh | sh
+```
+
+The installer detects Linux/macOS and `amd64`/`arm64`, verifies the release
+checksum, and installs to `/usr/local/bin/emobase`. It uses `sudo` only when
+needed.
+
+Install a specific version, or install for one user without sudo:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --version 0.2.0
+curl -fsSL https://raw.githubusercontent.com/EMOBase/emobase-cli/main/install.sh \
+  | sh -s -- --user
+```
 
 A deployment host also needs Docker with Compose, `git`, and `python3`.
 
-This script resolves the newest `v*` release, verifies its checksum, and
-installs `emobase` in `/usr/local/bin`:
-
-```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  os="$(uname -s)"
-  case "$os" in
-    Linux) os=linux ;;
-    Darwin) os=darwin ;;
-    *) echo "unsupported OS: $os" >&2; exit 1 ;;
-  esac
-  case "$(uname -m)" in
-    x86_64|amd64) arch=amd64 ;;
-    arm64|aarch64) arch=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
-  esac
-
-  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
-    https://github.com/EMOBase/emobase-cli/releases/latest)"
-  ver="${tag##*/v}"
-  base="https://github.com/EMOBase/emobase-cli/releases/download/v${ver}"
-  file="emobase_${ver}_${os}_${arch}.tar.gz"
-
-  curl -fsSLO "$base/$file"
-  curl -fsSLO "$base/checksums.txt"
-  grep " $file\$" checksums.txt > checksum.txt
-  if [ "$os" = linux ]; then
-    sha256sum -c checksum.txt
-  else
-    shasum -a 256 -c checksum.txt
-  fi
-
-  tar -xzf "$file" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
-```
-
-For a per-user install, a pinned or older version, the rolling `main` build, or
-building from source, see [INSTALL.md](INSTALL.md).
+For the rolling `main` build, manual downloads, or building from source, see
+[INSTALL.md](INSTALL.md).
 
 ## Quick start
 
