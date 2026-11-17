@@ -19,22 +19,14 @@ to touch.
 
 ## Install
 
-Prebuilt binaries are available for Linux and macOS (`amd64` and `arm64`) on
-the [releases page](https://github.com/EMOBase/emobase-cli/releases). Building
-from source requires Go 1.25 or newer.
+Install the latest stable release. Prebuilt binaries are available for Linux
+and macOS on `amd64` and `arm64`; all releases are on the
+[releases page](https://github.com/EMOBase/emobase-cli/releases).
 
-The deployment host needs Docker with Compose, `git`, and `python3`.
+A deployment host also needs Docker with Compose, `git`, and `python3`.
 
-### Latest build from `main` (rolling)
-
-Every push to `main` publishes a `latest` release with stable asset names. It
-changes with each commit, so use a tagged release for production
-reproducibility. `emobase --version` reports `main-<commit>`.
-
-Each block downloads into a temporary directory and removes it automatically,
-so only `/usr/local/bin/emobase` remains after installation.
-
-#### Linux server
+This script resolves the newest `v*` release, verifies its checksum, and
+installs `emobase` in `/usr/local/bin`:
 
 ```sh
 (
@@ -43,161 +35,40 @@ so only `/usr/local/bin/emobase` remains after installation.
   trap 'rm -rf "$tmp"' EXIT
   cd "$tmp"
 
-  case "$(uname -m)" in
-    x86_64) ARCH=amd64 ;;
-    aarch64|arm64) ARCH=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+  os="$(uname -s)"
+  case "$os" in
+    Linux) os=linux ;;
+    Darwin) os=darwin ;;
+    *) echo "unsupported OS: $os" >&2; exit 1 ;;
   esac
-  BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
+  case "$(uname -m)" in
+    x86_64|amd64) arch=amd64 ;;
+    arm64|aarch64) arch=arm64 ;;
+    *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+  esac
 
-  curl -fsSLO "$BASE/emobase_linux_${ARCH}.tar.gz"
-  curl -fsSLO "$BASE/checksums.txt"
-  grep "linux_${ARCH}" checksums.txt | sha256sum -c -
-  tar -xzf "emobase_linux_${ARCH}.tar.gz" emobase
+  tag="$(curl -fsSLI -o /dev/null -w '%{url_effective}' \
+    https://github.com/EMOBase/emobase-cli/releases/latest)"
+  ver="${tag##*/v}"
+  base="https://github.com/EMOBase/emobase-cli/releases/download/v${ver}"
+  file="emobase_${ver}_${os}_${arch}.tar.gz"
+
+  curl -fsSLO "$base/$file"
+  curl -fsSLO "$base/checksums.txt"
+  grep " $file\$" checksums.txt > checksum.txt
+  if [ "$os" = linux ]; then
+    sha256sum -c checksum.txt
+  else
+    shasum -a 256 -c checksum.txt
+  fi
+
+  tar -xzf "$file" emobase
   sudo install -m 0755 emobase /usr/local/bin/emobase
 ) && emobase --version
 ```
 
-#### macOS
-
-```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  case "$(uname -m)" in
-    x86_64) ARCH=amd64 ;;
-    arm64) ARCH=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
-  esac
-  BASE="https://github.com/EMOBase/emobase-cli/releases/download/latest"
-
-  curl -fsSLO "$BASE/emobase_darwin_${ARCH}.tar.gz"
-  curl -fsSLO "$BASE/checksums.txt"
-  grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
-  tar -xzf "emobase_darwin_${ARCH}.tar.gz" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
-```
-
-### Tagged release (pinned)
-
-#### Linux server
-
-```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  VER=0.1.2
-  case "$(uname -m)" in
-    x86_64) ARCH=amd64 ;;
-    aarch64|arm64) ARCH=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
-  esac
-  BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
-
-  curl -fsSLO "$BASE/emobase_${VER}_linux_${ARCH}.tar.gz"
-  curl -fsSLO "$BASE/checksums.txt"
-  grep "linux_${ARCH}" checksums.txt | sha256sum -c -
-  tar -xzf "emobase_${VER}_linux_${ARCH}.tar.gz" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
-```
-
-#### macOS
-
-```sh
-(
-  set -e
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  cd "$tmp"
-
-  VER=0.1.2
-  case "$(uname -m)" in
-    x86_64) ARCH=amd64 ;;
-    arm64) ARCH=arm64 ;;
-    *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
-  esac
-  BASE="https://github.com/EMOBase/emobase-cli/releases/download/v${VER}"
-
-  curl -fsSLO "$BASE/emobase_${VER}_darwin_${ARCH}.tar.gz"
-  curl -fsSLO "$BASE/checksums.txt"
-  grep "darwin_${ARCH}" checksums.txt | shasum -a 256 -c -
-  tar -xzf "emobase_${VER}_darwin_${ARCH}.tar.gz" emobase
-  sudo install -m 0755 emobase /usr/local/bin/emobase
-) && emobase --version
-```
-
-To install for one user instead, replace the `sudo install ...` line inside the
-temporary-directory block with:
-
-```sh
-# Linux
-install -D -m 0755 emobase ~/.local/bin/emobase
-
-# macOS
-mkdir -p ~/.local/bin
-install -m 0755 emobase ~/.local/bin/emobase
-```
-
-### Build from source (local machine)
-
-```sh
-git clone https://github.com/EMOBase/emobase-cli.git
-cd emobase-cli
-make build            # writes ./dist/emobase
-./dist/emobase --version
-```
-
-Put it on your `PATH` with one of:
-
-```sh
-make install-user                        # ~/.local/bin/emobase, no sudo
-make install                             # /usr/local/bin/emobase, may need sudo
-PREFIX=/opt/homebrew make install        # Homebrew prefix on Apple Silicon
-```
-
-`~/.local/bin` is not always on `PATH`; add it in `~/.zshrc` if needed:
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-### Build and copy to a server (offline or unreleased)
-
-Cross-compile the Linux binaries on your machine:
-
-```sh
-make build-linux      # dist/emobase-linux-amd64 and dist/emobase-linux-arm64
-```
-
-Pick the architecture matching the server (`uname -m`: `x86_64` → `amd64`,
-`aarch64`/`arm64` → `arm64`), copy it over, and install it system-wide:
-
-```sh
-scp dist/emobase-linux-amd64 you@server:/tmp/emobase
-ssh you@server 'sudo install -m 0755 /tmp/emobase /usr/local/bin/emobase && emobase --version'
-```
-
-Or install for one user without sudo:
-
-```sh
-ssh you@server 'install -D -m 0755 /tmp/emobase ~/.local/bin/emobase'
-```
-
-Then run it from the directory that holds the checkouts, or point at it
-explicitly:
-
-```sh
-cd /srv/emobase && emobase doctor
-emobase --workspace /srv/emobase doctor
-```
+For a per-user install, a pinned or older version, the rolling `main` build, or
+building from source, see [INSTALL.md](INSTALL.md).
 
 ## Quick start
 
@@ -491,16 +362,18 @@ There are two channels:
 Tagged release:
 
 ```sh
-git tag v0.1.2
-git push origin v0.1.2
-gh run watch --workflow=release.yml
+git tag v0.2.0
+git push origin v0.2.0
+gh run watch "$(gh run list --workflow=release.yml --limit 1 \
+  --json databaseId --jq '.[0].databaseId')"
 ```
 
 Latest main build:
 
 ```sh
 git push origin main
-gh run watch --workflow=latest.yml
+gh run watch "$(gh run list --workflow=latest.yml --limit 1 \
+  --json databaseId --jq '.[0].databaseId')"
 ```
 
 To test the GoReleaser configuration locally without publishing:
