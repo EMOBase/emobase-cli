@@ -13,7 +13,7 @@ const previewRoot = "/srv/emobase"
 const infraEnv = `MYSQL_ROOT_PASSWORD=root-secret
 KEYCLOAK_PUBLIC_URL=https://auth.example.org/keycloak
 KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak
-KEYCLOAK_HOST_PORT=8081
+KEYCLOAK_HOST_PORT=8181
 KEYCLOAK_ADMIN=admin
 KEYCLOAK_ADMIN_PASSWORD=admin-secret
 EMOBASE_INFRA_NETWORK=emobase-infra

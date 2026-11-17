@@ -120,7 +120,7 @@ func (a *App) createInfraCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/emobase-infra)")
 	f.StringVar(&o.keycloakURL, "keycloak-public-url", "", "browser-facing Keycloak base URL, e.g. https://auth.example.org/keycloak")
-	f.StringVar(&o.keycloakPort, "keycloak-host-port", "", "host port for Keycloak (default 8081)")
+	f.StringVar(&o.keycloakPort, "keycloak-host-port", "", "host port for Keycloak (default 8181)")
 	f.StringVar(&o.network, "infra-network", "", "shared Docker network (default emobase-infra)")
 	f.BoolVar(&o.local, "local", false, "local trial: use localhost URLs")
 	f.BoolVar(&o.force, "force", false, "overwrite an existing .env (rotates secrets)")

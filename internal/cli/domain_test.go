@@ -35,13 +35,13 @@ func domainTestStack(role workspace.Role, name, dir string, env map[string]strin
 
 func domainFixture() *workspace.Workspace {
 	infra := domainTestStack(workspace.RoleInfra, "emobase-infra", "/srv/emobase/emobase-infra", map[string]string{
-		"KEYCLOAK_PUBLIC_URL": "http://localhost:8081/keycloak",
-		"KEYCLOAK_HOST_PORT":  "8081",
+		"KEYCLOAK_PUBLIC_URL": "http://localhost:8181/keycloak",
+		"KEYCLOAK_HOST_PORT":  "8181",
 		"KEYCLOAK_REALM":      "ibb",
 	})
 	portal := domainTestStack(workspace.RolePortal, "emobase-portal-deploy", "/srv/emobase/emobase-portal-deploy", map[string]string{
 		"PUBLIC_SERVER":       "http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL": "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL": "http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM":      "ibb",
 	})
 	species := domainTestStack(workspace.RoleSpecies, "emobase-deploy-tcas", "/srv/emobase/emobase-deploy-tcas", map[string]string{
@@ -49,9 +49,9 @@ func domainFixture() *workspace.Workspace {
 		"PUBLIC_SERVER":            "http://localhost:9090",
 		"PORTAL_SERVER":            "http://localhost:9080",
 		"PORTAL_INTERNAL_URL":      "http://host.docker.internal:9080",
-		"KEYCLOAK_PUBLIC_URL":      "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL":      "http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM":           "ibb",
-		"INTERNAL_KEYCLOAK_ISSUER": "http://host.docker.internal:8081/keycloak/realms/ibb",
+		"INTERNAL_KEYCLOAK_ISSUER": "http://host.docker.internal:8181/keycloak/realms/ibb",
 	})
 	return &workspace.Workspace{Root: "/srv/emobase", Infra: infra, Portal: portal, Species: []*workspace.Stack{species}}
 }
@@ -253,10 +253,10 @@ func TestDomainURLValidation(t *testing.T) {
 }
 
 func TestDerivedInternalIssuer(t *testing.T) {
-	if got := derivedInternalIssuer("http://localhost:8081/keycloak", "8081", "ibb"); got != "http://host.docker.internal:8081/keycloak/realms/ibb" {
+	if got := derivedInternalIssuer("http://localhost:8181/keycloak", "8181", "ibb"); got != "http://host.docker.internal:8181/keycloak/realms/ibb" {
 		t.Fatalf("loopback issuer = %q", got)
 	}
-	if got := derivedInternalIssuer("https://auth.example.org/keycloak", "8081", "ibb_tcas"); got != "https://auth.example.org/keycloak/realms/ibb_tcas" {
+	if got := derivedInternalIssuer("https://auth.example.org/keycloak", "8181", "ibb_tcas"); got != "https://auth.example.org/keycloak/realms/ibb_tcas" {
 		t.Fatalf("public issuer = %q", got)
 	}
 }
@@ -264,14 +264,14 @@ func TestDerivedInternalIssuer(t *testing.T) {
 func TestDomainPlanCommand(t *testing.T) {
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM=ibb",
-		"KEYCLOAK_HOST_PORT=8081",
+		"KEYCLOAK_HOST_PORT=8181",
 		"",
 	}, "\n"))
 	mkCLIStack(t, root, "emobase-portal-deploy", testPortalCompose, strings.Join([]string{
 		"PUBLIC_SERVER=http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))
@@ -279,7 +279,7 @@ func TestDomainPlanCommand(t *testing.T) {
 		"MAIN_SPECIES=Tcas",
 		"PUBLIC_SERVER=http://localhost:9090",
 		"PORTAL_SERVER=http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))
@@ -305,16 +305,16 @@ func TestDomainPlanCommand(t *testing.T) {
 func TestDomainPlanCommandSpeciesOnly(t *testing.T) {
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM=ibb",
-		"KEYCLOAK_HOST_PORT=8081",
+		"KEYCLOAK_HOST_PORT=8181",
 		"",
 	}, "\n"))
 	mkCLIStack(t, root, "emobase-deploy-tcas", testSpeciesCompose, strings.Join([]string{
 		"MAIN_SPECIES=Tcas",
 		"PUBLIC_SERVER=http://localhost:9090",
 		"PORTAL_SERVER=https://portal.example.org",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))

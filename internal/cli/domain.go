@@ -303,7 +303,7 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 	plan := &domainPlan{}
 	hostPort, _ := ws.Infra.Get("KEYCLOAK_HOST_PORT")
 	if hostPort == "" {
-		hostPort = "8081"
+		hostPort = "8181"
 	}
 
 	authOldRaw, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
@@ -819,7 +819,7 @@ func derivedInternalIssuer(authURL, hostPort, realm string) string {
 			port = u.Port()
 		}
 		if port == "" {
-			port = "8081"
+			port = "8181"
 		}
 		return fmt.Sprintf("http://host.docker.internal:%s/keycloak/realms/%s", port, realm)
 	}

@@ -23,7 +23,7 @@ type Client struct {
 }
 
 // New builds a client. base is KEYCLOAK_PUBLIC_URL, e.g.
-// http://localhost:8081/keycloak.
+// http://localhost:8181/keycloak.
 func New(base, user, password string) *Client {
 	return &Client{
 		Base:     strings.TrimRight(base, "/"),

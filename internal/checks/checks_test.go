@@ -18,9 +18,9 @@ const (
 
 func infraEnv() map[string]string {
 	return map[string]string{
-		"KEYCLOAK_PUBLIC_URL":     "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL":     "http://localhost:8181/keycloak",
 		"KEYCLOAK_INTERNAL_URL":   "http://keycloak:8080/keycloak",
-		"KEYCLOAK_HOST_PORT":      "8081",
+		"KEYCLOAK_HOST_PORT":      "8181",
 		"KEYCLOAK_ADMIN":          "admin",
 		"KEYCLOAK_ADMIN_PASSWORD": "admin-secret",
 		"MYSQL_ROOT_PASSWORD":     "root-secret",
@@ -41,7 +41,7 @@ func portalEnv() map[string]string {
 		"EMOBASE_GENOMICS_IMAGE":           "g:dev",
 		"EMOBASE_PORTAL_WEB_IMAGE":         "p:dev",
 		"MYSQL_ROOT_PASSWORD":              "root-secret",
-		"KEYCLOAK_PUBLIC_URL":              "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL":              "http://localhost:8181/keycloak",
 		"KEYCLOAK_INTERNAL_URL":            "http://keycloak:8080/keycloak",
 		"EMOBASE_INFRA_NETWORK":            "emobase-infra",
 		"KEYCLOAK_REALM":                   "emobase-portal",
@@ -70,7 +70,7 @@ func speciesEnv() map[string]string {
 		"COMPOSE_PROJECT_NAME":          "tcas",
 		"SSR_OIDC_SESSION_SECRET":       "ssr-secret",
 		"INTERNAL_API_GENOMICS_SERVICE": "http://genomicsservice/api",
-		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/emobase-portal",
+		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8181/keycloak/realms/emobase-portal",
 		"INTERNAL_DIRECTUS_URL":         "http://directus:8055",
 		"PUBLIC_DATA_DIR":               "./data/public",
 		"PRIVATE_DATA_DIR":              "./data/private",
@@ -79,7 +79,7 @@ func speciesEnv() map[string]string {
 		"GID":                           "1000",
 		"EMOBASE_INFRA_NETWORK":         "emobase-infra",
 		"MYSQL_ROOT_PASSWORD":           "root-secret",
-		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8181/keycloak",
 		"KEYCLOAK_INTERNAL_URL":         "http://keycloak:8080/keycloak",
 		"KEYCLOAK_REALM":                "emobase-portal",
 		"KEYCLOAK_REALM_MODE":           "joined",
@@ -264,10 +264,10 @@ func TestEmptyComposeProjectNameIsFilled(t *testing.T) {
 
 func TestTrailingSlashIsSafeFix(t *testing.T) {
 	root, envs := fixture(t)
-	envs["emobase-infra"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8081/keycloak/"
+	envs["emobase-infra"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8181/keycloak/"
 	// Keep every stack in sync so only the trailing-slash finding remains.
-	envs["emobase-portal-deploy"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8081/keycloak/"
-	envs["emobase-deploy-tcas"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8081/keycloak/"
+	envs["emobase-portal-deploy"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8181/keycloak/"
+	envs["emobase-deploy-tcas"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8181/keycloak/"
 	ws := discover(t, root, envs)
 
 	rep := Run(ws)
@@ -282,7 +282,7 @@ func TestTrailingSlashIsSafeFix(t *testing.T) {
 		t.Fatal(err)
 	}
 	ws = reload(t, root)
-	if got, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL"); got != "http://localhost:8081/keycloak" {
+	if got, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL"); got != "http://localhost:8181/keycloak" {
 		t.Fatalf("value = %q", got)
 	}
 }
@@ -307,7 +307,7 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 		"COMPOSE_PROJECT_NAME":          "dmel",
 		"SSR_OIDC_SESSION_SECRET":       "x",
 		"INTERNAL_API_GENOMICS_SERVICE": "http://g",
-		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8081/keycloak/realms/emobase-portal",
+		"INTERNAL_KEYCLOAK_ISSUER":      "http://host.docker.internal:8181/keycloak/realms/emobase-portal",
 		"INTERNAL_DIRECTUS_URL":         "http://d",
 		"PUBLIC_DATA_DIR":               "./p",
 		"PRIVATE_DATA_DIR":              "./pr",
@@ -316,7 +316,7 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 		"GID":                           "1000",
 		"EMOBASE_INFRA_NETWORK":         "emobase-infra",
 		"MYSQL_ROOT_PASSWORD":           "root-secret",
-		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8081/keycloak",
+		"KEYCLOAK_PUBLIC_URL":           "http://localhost:8181/keycloak",
 		"KEYCLOAK_INTERNAL_URL":         "http://keycloak:8080/keycloak",
 		"KEYCLOAK_REALM":                "emobase-portal",
 		"KEYCLOAK_REALM_MODE":           "joined",
@@ -368,7 +368,7 @@ func TestDuplicateESIndexPrefix(t *testing.T) {
 func TestDedicatedRealmNeedsClient(t *testing.T) {
 	root, envs := fixture(t)
 	envs["emobase-deploy-tcas"]["KEYCLOAK_REALM"] = "ibb_tcas"
-	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8081/keycloak/realms/ibb_tcas"
+	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8181/keycloak/realms/ibb_tcas"
 	delete(envs["emobase-deploy-tcas"], "KEYCLOAK_CLIENT_ID")
 	delete(envs["emobase-deploy-tcas"], "KEYCLOAK_CLIENT_SECRET")
 	ws := discover(t, root, envs)
@@ -388,7 +388,7 @@ func TestDedicatedRealmNeedsClient(t *testing.T) {
 
 func TestIssuerMismatchWarns(t *testing.T) {
 	root, envs := fixture(t)
-	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8081/keycloak/realms/other"
+	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8181/keycloak/realms/other"
 	ws := discover(t, root, envs)
 	f := find(Run(ws), "issuer.INTERNAL_KEYCLOAK_ISSUER")
 	if f == nil || f.Severity != Warn {
