@@ -42,7 +42,7 @@ exit 0
 }
 
 func TestSpeciesRemovePurgeDeletesESIndices(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	fakeDockerWithES(t)
 
 	marker := filepath.Join(t.TempDir(), "es-args")
@@ -67,7 +67,7 @@ func TestSpeciesRemovePurgeDeletesESIndices(t *testing.T) {
 }
 
 func TestSpeciesRemovePurgeDeletesCheckout(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	fakeDocker(t)
 	dir := filepath.Join(root, "emobase-deploy-tcas")
 
@@ -80,7 +80,7 @@ func TestSpeciesRemovePurgeDeletesCheckout(t *testing.T) {
 }
 
 func TestSpeciesRemoveKeepDirKeepsCheckout(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	fakeDocker(t)
 	dir := filepath.Join(root, "emobase-deploy-tcas")
 

@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/EMOBase/emobase-cli/internal/workspace"
 )
 
 const (
@@ -33,7 +31,7 @@ func mkCLIStack(t *testing.T, root, name, compose, env string) {
 	}
 }
 
-func matrixFixture(t *testing.T) string {
+func sharedEnvFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
@@ -74,59 +72,6 @@ func matrixFixture(t *testing.T) string {
 	return root
 }
 
-func TestMatrixRowsMaskSecrets(t *testing.T) {
-	root := matrixFixture(t)
-	ws, err := workspace.Discover(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	headers, rows := matrixRows(ws)
-	if len(headers) != 5 {
-		t.Fatalf("headers = %v", headers)
-	}
-	if headers[3] != "portal" || headers[4] != "species:emobase-deploy-tcas" {
-		t.Fatalf("headers = %v", headers)
-	}
-	var secretRow []string
-	for _, row := range rows {
-		if row[0] == "MYSQL_ROOT_PASSWORD" {
-			secretRow = row
-		}
-	}
-	if secretRow == nil {
-		t.Fatal("missing MYSQL_ROOT_PASSWORD row")
-	}
-	for _, cell := range secretRow[2:] {
-		if strings.Contains(cell, "root-secret") {
-			t.Fatalf("secret leaked: %v", secretRow)
-		}
-	}
-}
-
-func TestWriteMatrixJSON(t *testing.T) {
-	root := matrixFixture(t)
-	ws, err := workspace.Discover(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	headers, rows := matrixRows(ws)
-	var buf bytes.Buffer
-	if err := writeMatrixJSON(&buf, ws, headers, rows); err != nil {
-		t.Fatal(err)
-	}
-	var got struct {
-		Workspace string     `json:"workspace"`
-		Headers   []string   `json:"headers"`
-		Rows      [][]string `json:"rows"`
-	}
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if got.Workspace != root || len(got.Headers) != len(headers) || len(got.Rows) != len(rows) {
-		t.Fatalf("unexpected JSON: %+v", got)
-	}
-}
-
 func TestDoctorJSONReportsErrors(t *testing.T) {
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, "KEYCLOAK_REALM=ibb\n")
@@ -156,7 +101,7 @@ func TestDoctorJSONReportsErrors(t *testing.T) {
 }
 
 func TestSpeciesListJSON(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	cmd := New()
 	var out, errb bytes.Buffer
 	cmd.SetOut(&out)

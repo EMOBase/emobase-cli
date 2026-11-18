@@ -182,7 +182,6 @@ prunes.
 | `emobase` | Workspace dashboard: stacks, shared URLs, findings |
 | `emobase doctor [--fix] [--yes] [--live] [--json]` | Static (and optionally runtime) cross-repo checks; `--fix` applies safe repairs |
 | `emobase status` | Live containers, Docker network, MySQL databases, realms and HTTP status |
-| `emobase env matrix [--json]` | One row per shared key, one column per stack; secrets masked |
 | `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add ...` | Same as `emobase create species` |
@@ -238,12 +237,11 @@ copy of the previous contents is kept before each save.
 
 ## JSON output
 
-`--json` works with the dashboard, `doctor`, `status`, `env matrix` and
-`species list`. Examples:
+`--json` works with the dashboard, `doctor`, `status` and `species list`.
+Examples:
 
 ```sh
 emobase doctor --json | jq '.findings[] | select(.severity == "error")'
-emobase env matrix --json | jq -r '.headers, .rows[]'
 emobase species list --json | jq -r '.[] | "\(.species)\t\(.url)"'
 ```
 
@@ -286,7 +284,7 @@ make preview-all                     # render every case
 ```
 
 Flags: `--no-color`, `--all`, `--help`. Cases cover the dashboard, doctor,
-matrix, species list and runtime status, including empty, warning, conflict and
+species list and runtime status, including empty, warning, conflict and
 Docker-unavailable states.
 
 Layout:

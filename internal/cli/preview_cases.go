@@ -186,10 +186,6 @@ func statusDockerDown() statusReport {
 }
 
 func previewCases() []previewCase {
-	matrix := func(ws *workspace.Workspace) string {
-		headers, rows := matrixRows(ws)
-		return renderMatrix(headers, rows)
-	}
 	return []previewCase{
 		{Name: "dashboard-healthy", Group: "dashboard", Description: "3 stacks, no findings", Render: func() string {
 			ws := healthyWorkspace()
@@ -228,16 +224,6 @@ func previewCases() []previewCase {
 				{Scope: "portal", Key: "MYSQL_ROOT_PASSWORD", Old: "wrong-secret", New: "root-secret", Secret: true},
 			}
 			return renderDoctor(previewReport(ws), applied, true, true)
-		}},
-
-		{Name: "matrix-healthy", Group: "matrix", Description: "3 stacks with masked secrets", Render: func() string {
-			return matrix(healthyWorkspace())
-		}},
-		{Name: "matrix-missing", Group: "matrix", Description: "absent values shown as dashes", Render: func() string {
-			return matrix(findingsWorkspace())
-		}},
-		{Name: "matrix-conflicts", Group: "matrix", Description: "4 stacks with duplicated values", Render: func() string {
-			return matrix(conflictWorkspace())
 		}},
 
 		{Name: "species-list", Group: "species", Description: "two species checkouts", Render: func() string {

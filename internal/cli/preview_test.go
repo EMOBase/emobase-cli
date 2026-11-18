@@ -41,7 +41,7 @@ func TestPreviewRendersEveryCase(t *testing.T) {
 
 func TestPreviewMasksSecrets(t *testing.T) {
 	secrets := []string{"root-secret", "wrong-secret", "new-secret", "infra-secret", "tcas-secret", "dmel-secret"}
-	for _, name := range []string{"doctor-fix-applied", "matrix-healthy", "matrix-conflicts"} {
+	for _, name := range []string{"doctor-fix-applied"} {
 		out, _, code := runPreview(t, name, "--no-color")
 		if code != 0 {
 			t.Fatalf("%s: code = %d", name, code)

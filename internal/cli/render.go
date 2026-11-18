@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 
 	"github.com/EMOBase/emobase-cli/internal/checks"
-	"github.com/EMOBase/emobase-cli/internal/spec"
 	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
@@ -124,44 +122,4 @@ func (a *App) writeJSON(out io.Writer, ws *workspace.Workspace, rep *checks.Repo
 	return enc.Encode(jr)
 }
 
-// matrixRows builds the shared-key matrix for the env command.
-func matrixRows(ws *workspace.Workspace) ([]string, [][]string) {
-	stacks := ws.All()
-	headers := []string{"key", "authority"}
-	seenScope := map[string]int{}
-	for _, st := range stacks {
-		label := checks.ScopeOf(st)
-		seenScope[label]++
-		if seenScope[label] > 1 {
-			label = label + "#" + strconv.Itoa(seenScope[label])
-		}
-		headers = append(headers, label)
-	}
-	var keys []struct {
-		key  string
-		auth spec.Authority
-	}
-	for _, k := range spec.SharedToInfra {
-		keys = append(keys, struct {
-			key  string
-			auth spec.Authority
-		}{k.Key, k.Authority})
-	}
-	var rows [][]string
-	for _, k := range keys {
-		row := []string{k.key, string(k.auth)}
-		for _, st := range stacks {
-			v, ok := st.Get(k.key)
-			switch {
-			case !ok || v == "":
-				row = append(row, "—")
-			case spec.IsSecret(k.key):
-				row = append(row, spec.Mask(v))
-			default:
-				row = append(row, v)
-			}
-		}
-		rows = append(rows, row)
-	}
-	return headers, rows
-}
+

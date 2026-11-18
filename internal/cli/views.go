@@ -28,7 +28,7 @@ func renderDashboard(ws *workspace.Workspace, rep *checks.Report) string {
 		printFindings(&b, rep)
 	}
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("Next: emobase doctor --fix   (safe fixes)   |   emobase status   |   emobase env matrix"))
+	fmt.Fprintln(&b, muted("Next: emobase doctor --fix   (safe fixes)   |   emobase status"))
 	return b.String()
 }
 
@@ -105,16 +105,6 @@ func renderStatus(sr statusReport) string {
 	}
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, muted("Use emobase doctor --live for actionable checks."))
-	return b.String()
-}
-
-func renderMatrix(headers []string, rows [][]string) string {
-	var b strings.Builder
-	fmt.Fprintln(&b, title("Shared environment"))
-	fmt.Fprintln(&b)
-	fmt.Fprint(&b, ui.Table(headers, rows))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("emobase doctor --fix reconciles missing values; --fix --yes also resolves conflicts."))
 	return b.String()
 }
 

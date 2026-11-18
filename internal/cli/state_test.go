@@ -10,7 +10,7 @@ import (
 )
 
 func TestStackLedgerTracksResources(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	ws, err := workspace.Discover(root)
 	if err != nil {
 		t.Fatal(err)
@@ -63,7 +63,7 @@ func TestStackLedgerTracksResources(t *testing.T) {
 }
 
 func TestStateFindingsHintMatchesRole(t *testing.T) {
-	root := matrixFixture(t)
+	root := sharedEnvFixture(t)
 	ws, err := workspace.Discover(root)
 	if err != nil {
 		t.Fatal(err)

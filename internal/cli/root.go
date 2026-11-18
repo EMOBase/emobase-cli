@@ -69,7 +69,6 @@ Each repository still owns its secrets and remains deployable on its own.`,
 	root.AddCommand(
 		a.doctorCmd(),
 		a.statusCmd(),
-		a.envCmd(),
 		a.domainCmd(),
 		a.speciesCmd(),
 		a.createCmd(),
