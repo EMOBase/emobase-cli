@@ -121,5 +121,3 @@ func (a *App) writeJSON(out io.Writer, ws *workspace.Workspace, rep *checks.Repo
 	enc.SetIndent("", "  ")
 	return enc.Encode(jr)
 }
-
-
