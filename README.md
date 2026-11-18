@@ -9,13 +9,15 @@ It is **not** a fourth source of configuration. Every checkout keeps its own
 
 | Checkout | Role | Owns |
 | --- | --- | --- |
-| `emobase-infra` | shared infrastructure | MySQL root password, Keycloak admin credentials, Keycloak public/internal URLs, the shared Docker network |
-| `emobase-portal-deploy` | multi-species portal | `PUBLIC_SERVER`, portal realm/client/seed credentials, genomics database settings |
-| `emobase-deploy-<species>` | one species site | joined or new realm credentials, Directus database, HTTP port, Compose project name |
+| `infra` | shared infrastructure | MySQL root password, Keycloak admin credentials, Keycloak public/internal URLs, the shared Docker network |
+| `portal` | multi-species portal | `PUBLIC_SERVER`, portal realm/client/seed credentials, genomics database settings |
+| `<Species>` | one species site | joined or new realm credentials, Directus database, HTTP port, Compose project name |
 
-One `emobase-deploy` clone exists per species. The CLI never stores secrets,
-never copies them between checkouts, and never rewrites a file it does not need
-to touch.
+`emobase create` uses these names and prompts for the directory, so a deployment
+can rename a checkout without breaking discovery (each checkout is identified by
+its `compose.yml`, not its path). One species clone exists per species. The CLI
+never stores secrets, never copies them between checkouts, and never rewrites
+a file it does not need to touch.
 
 ## Install
 
@@ -35,10 +37,10 @@ identified by its `compose.yml`.
 
 ```
 work/
-├── emobase-infra/
-├── emobase-portal-deploy/
-├── emobase-deploy-tcas/
-└── emobase-deploy-dmel/
+├── infra/
+├── portal/
+├── Tcas/
+└── Dmel/
 ```
 
 ```sh

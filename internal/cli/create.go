@@ -64,7 +64,7 @@ func (a *App) createInfraCmd() *cobra.Command {
 	o := &infraOpts{}
 	cmd := &cobra.Command{
 		Use:   "infra",
-		Short: "Scaffold emobase-infra/.env",
+		Short: "Scaffold the infra checkout and its .env",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := workspace.ResolveRoot(a.WorkspaceFlag)
@@ -72,7 +72,10 @@ func (a *App) createInfraCmd() *cobra.Command {
 				return err
 			}
 			if o.dir == "" {
-				o.dir = filepath.Join(root, "emobase-infra")
+				o.dir, err = a.promptCheckoutDir(cmd, root, filepath.Join(root, "infra"))
+				if err != nil {
+					return err
+				}
 			}
 			if o.dir, err = filepath.Abs(o.dir); err != nil {
 				return err
@@ -118,7 +121,7 @@ func (a *App) createInfraCmd() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/emobase-infra)")
+	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/infra; asked when interactive)")
 	f.StringVar(&o.keycloakURL, "keycloak-public-url", "", "browser-facing Keycloak base URL, e.g. https://auth.example.org/keycloak")
 	f.StringVar(&o.keycloakPort, "keycloak-host-port", "", "host port for Keycloak (default 8181)")
 	f.StringVar(&o.network, "infra-network", "", "shared Docker network (default emobase-infra)")
@@ -139,7 +142,7 @@ func (a *App) createPortalCmd() *cobra.Command {
 	o := &portalOpts{}
 	cmd := &cobra.Command{
 		Use:   "portal",
-		Short: "Scaffold emobase-portal-deploy/.env",
+		Short: "Scaffold the portal checkout and its .env",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			root, err := workspace.ResolveRoot(a.WorkspaceFlag)
@@ -147,10 +150,16 @@ func (a *App) createPortalCmd() *cobra.Command {
 				return err
 			}
 			if o.dir == "" {
-				o.dir = filepath.Join(root, "emobase-portal-deploy")
+				o.dir, err = a.promptCheckoutDir(cmd, root, filepath.Join(root, "portal"))
+				if err != nil {
+					return err
+				}
 			}
 			if o.infraDir == "" {
-				o.infraDir = filepath.Join(root, "emobase-infra")
+				o.infraDir = siblingDir(root, workspace.RoleInfra)
+				if o.infraDir == "" {
+					o.infraDir = filepath.Join(root, "infra")
+				}
 			}
 			if o.dir, err = filepath.Abs(o.dir); err != nil {
 				return err
@@ -237,13 +246,13 @@ func (a *App) createPortalCmd() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
-	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/emobase-portal-deploy)")
+	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/portal; asked when interactive)")
 	f.StringVar(&o.publicServer, "public-server", "", "portal PUBLIC_SERVER")
 	f.StringVar(&o.httpPort, "http-port", "", "host port for nginx (default 9080)")
 	f.StringVar(&o.realm, "keycloak-realm", "", "portal realm (default emobase-portal)")
 	f.StringVar(&o.clientID, "keycloak-client-id", "", "portal client ID (default emobase-portal-client)")
 	f.StringVar(&o.clientSecret, "keycloak-client-secret", "", "portal client secret (generated when omitted)")
-	f.StringVar(&o.infraDir, "infra-dir", "", "emobase-infra checkout (default: <workspace>/emobase-infra)")
+	f.StringVar(&o.infraDir, "infra-dir", "", "infra checkout (default: <workspace>/infra)")
 	f.BoolVar(&o.local, "local", false, "local trial: use localhost URLs")
 	f.BoolVar(&o.force, "force", false, "overwrite an existing .env")
 	f.BoolVar(&o.clone, "clone", false, "clone the repository when the directory is missing")
@@ -273,7 +282,7 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	}
 	f := cmd.Flags()
 	f.StringVarP(&o.species, "species", "s", "", "4-letter species code, e.g. Tcas (asked when omitted; no default)")
-	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/emobase-deploy-<species>)")
+	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/<species>; asked when interactive)")
 	f.StringVar(&o.publicServer, "public-server", "", "species PUBLIC_SERVER")
 	f.StringVar(&o.httpPort, "http-port", "", "host port (default 9090)")
 	f.StringVar(&o.portalServer, "portal-server", "", "portal URL when there is no local portal checkout")
@@ -287,8 +296,8 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	f.StringVar(&o.directusDB, "directus-db", "", "Directus database (default directus_<species>)")
 	f.StringVar(&o.containerPrefix, "container-prefix", "", "Compose project/container prefix (default: species slug)")
 	f.StringVar(&o.esPrefix, "es-index-prefix", "", "Elasticsearch index prefix (default: species slug; \"genomics\" is reserved for the portal)")
-	f.StringVar(&o.infraDir, "infra-dir", "", "emobase-infra checkout (default: <workspace>/emobase-infra)")
-	f.StringVar(&o.portalDir, "portal-dir", "", "portal checkout (default: <workspace>/emobase-portal-deploy when present)")
+	f.StringVar(&o.infraDir, "infra-dir", "", "infra checkout (default: <workspace>/infra)")
+	f.StringVar(&o.portalDir, "portal-dir", "", "portal checkout (default: <workspace>/portal when present)")
 	f.BoolVar(&o.local, "local", false, "local trial: use localhost URLs")
 	f.BoolVar(&o.force, "force", false, "overwrite an existing .env")
 	f.BoolVar(&o.clone, "clone", false, "clone emobase-deploy (branch dev) when the directory is missing (asked when interactive)")
@@ -317,15 +326,22 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 		return fmt.Errorf("invalid --species %q", o.species)
 	}
 	if o.dir == "" {
-		o.dir = filepath.Join(root, "emobase-deploy-"+slug)
+		o.dir, err = a.promptCheckoutDir(cmd, root, filepath.Join(root, speciesDirName(o.species)))
+		if err != nil {
+			return err
+		}
 	}
 	if o.infraDir == "" {
-		o.infraDir = filepath.Join(root, "emobase-infra")
+		o.infraDir = siblingDir(root, workspace.RoleInfra)
+		if o.infraDir == "" {
+			o.infraDir = filepath.Join(root, "infra")
+		}
 	}
 	if o.portalDir == "" {
-		candidate := filepath.Join(root, "emobase-portal-deploy")
-		if _, err := os.Stat(filepath.Join(candidate, ".env")); err == nil {
-			o.portalDir = candidate
+		if d := siblingDir(root, workspace.RolePortal); d != "" {
+			if _, statErr := os.Stat(filepath.Join(d, ".env")); statErr == nil {
+				o.portalDir = d
+			}
 		}
 	}
 	if o.dir, err = filepath.Abs(o.dir); err != nil {
@@ -528,6 +544,62 @@ func ensureCheckout(r *scaffold.Runner, dir, url, branch string, clone bool) err
 		return fmt.Errorf("%s is not an EMOBase checkout\n  clone it with: git clone %s %s\n  or re-run with --clone", dir, url, dir)
 	}
 	return r.Clone(dir, url, branch)
+}
+
+// promptCheckoutDir lets the operator override the checkout directory while
+// showing the default, so Enter keeps the short layout. --yes, pipes and CI
+// take the default without asking.
+func (a *App) promptCheckoutDir(cmd *cobra.Command, root, defaultDir string) (string, error) {
+	if a.Yes || !canPrompt(cmd.InOrStdin()) {
+		return defaultDir, nil
+	}
+	shown := defaultDir
+	if rel, err := filepath.Rel(root, defaultDir); err == nil && !strings.HasPrefix(rel, "..") {
+		shown = rel
+	}
+	value, err := promptEdit(cmd, "Checkout directory", shown)
+	if err != nil {
+		return "", err
+	}
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = shown
+	}
+	if !filepath.IsAbs(value) {
+		value = filepath.Join(root, value)
+	}
+	return filepath.Abs(value)
+}
+
+// siblingDir returns the directory of an already-scaffolded checkout with the
+// given role, whatever it is called. Discovery is signature-based, so a custom
+// directory name still links to the right sibling.
+func siblingDir(root string, role workspace.Role) string {
+	ws, err := workspace.Discover(root)
+	if err != nil {
+		return ""
+	}
+	for _, st := range ws.All() {
+		if st.Role == role {
+			return st.Dir
+		}
+	}
+	return ""
+}
+
+func speciesDirName(code string) string {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return ""
+	}
+	for _, r := range code {
+		safe := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' ||
+			r >= '0' && r <= '9' || r == '-' || r == '_' || r == '.'
+		if !safe {
+			return speciesSlug(code)
+		}
+	}
+	return code
 }
 
 func speciesSlug(s string) string {
