@@ -226,6 +226,33 @@ func previewCases() []previewCase {
 			return renderDoctor(previewReport(ws), applied, true, true)
 		}},
 
+		{Name: "credential-list", Group: "credential", Description: "admin login plus two realms sharing one", Render: func() string {
+			return renderCredentialList([]credentialRow{
+				{Stack: "infra", User: "admin", Source: previewRoot + "/emobase-infra"},
+				{Stack: "portal", Realm: "emobase-portal", User: "coco", Seed: "unused", Source: previewRoot + "/emobase-portal-deploy"},
+				{Stack: "Lsta", Realm: "emobase-portal", User: "coco", Seed: "unused", Source: previewRoot + "/emobase-deploy-lsta", CopyDiffers: true},
+				{Stack: "Ptep", Realm: "emobase-ptep", User: "coco", Seed: "changed", Source: previewRoot + "/emobase-deploy-ptep"},
+			})
+		}},
+		{Name: "credential-infra", Group: "credential", Description: "Keycloak admin login", Render: func() string {
+			return renderCredentialAdmin(credentialRow{
+				Stack: "infra", User: "admin", Seed: "admin",
+				Source: previewRoot + "/emobase-infra", Password: "example-admin-pass",
+			}, "")
+		}},
+		{Name: "credential-detail", Group: "credential", Description: "unused seed prints user and password", Render: func() string {
+			return renderCredentialDetail(credentialRow{
+				Stack: "Lsta", Realm: "emobase-portal", User: "coco",
+				Seed: "unused", Source: previewRoot + "/emobase-deploy-lsta", Password: "example-generated-seed",
+			}, "https://auth.example.org/keycloak/admin/")
+		}},
+		{Name: "credential-detail-changed", Group: "credential", Description: "replaced seed with reset instructions", Render: func() string {
+			return renderCredentialDetail(credentialRow{
+				Stack: "Ptep", Realm: "emobase-ptep", User: "coco",
+				Seed: "changed", Source: previewRoot + "/emobase-deploy-ptep", Password: "example-generated-seed",
+			}, "https://auth.example.org/keycloak/admin/")
+		}},
+
 		{Name: "species-list", Group: "species", Description: "two species checkouts", Render: func() string {
 			return renderSpecies(speciesRows(conflictWorkspace()))
 		}},

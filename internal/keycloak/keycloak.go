@@ -194,3 +194,39 @@ func MatchesOrigin(patterns []string, origin string) bool {
 	}
 	return false
 }
+
+// UserRep is the subset of the Keycloak user representation we use.
+type UserRep struct {
+	ID              string   `json:"id"`
+	Username        string   `json:"username"`
+	RequiredActions []string `json:"requiredActions"`
+}
+
+// UserByUsername finds a user by exact username and returns nil when it does
+// not exist. The detail request is separate because the search endpoint does
+// not always include requiredActions, which is how Keycloak marks a seed
+// password that has not been changed yet.
+func (c *Client) UserByUsername(ctx context.Context, realm, username string) (*UserRep, error) {
+	var reps []UserRep
+	listPath := fmt.Sprintf("/admin/realms/%s/users?username=%s&exact=true",
+		url.PathEscape(realm), url.QueryEscape(username))
+	if _, err := c.adminDo(ctx, http.MethodGet, listPath, nil, &reps); err != nil {
+		return nil, err
+	}
+	if len(reps) == 0 {
+		return nil, nil
+	}
+	var full UserRep
+	path := fmt.Sprintf("/admin/realms/%s/users/%s", url.PathEscape(realm), url.PathEscape(reps[0].ID))
+	if _, err := c.adminDo(ctx, http.MethodGet, path, nil, &full); err != nil {
+		return nil, err
+	}
+	return &full, nil
+}
+
+// VerifyAdmin checks that the configured admin credentials can obtain a token,
+// which is the only way to confirm the stored admin password still works.
+func (c *Client) VerifyAdmin(ctx context.Context) error {
+	_, err := c.token(ctx)
+	return err
+}

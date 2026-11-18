@@ -182,6 +182,7 @@ prunes.
 | `emobase` | Workspace dashboard: stacks, shared URLs, findings |
 | `emobase doctor [--fix] [--yes] [--live] [--json]` | Static (and optionally runtime) cross-repo checks; `--fix` applies safe repairs |
 | `emobase status` | Live containers, Docker network, MySQL databases, realms and HTTP status |
+| `emobase credential show [stack]` | Seed users per realm plus the Keycloak admin; passwords only when a stack is named |
 | `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add ...` | Same as `emobase create species` |
