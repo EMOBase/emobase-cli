@@ -198,9 +198,10 @@ prunes.
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
 | `emobase bootstrap [--only ...] [--dry-run]` | Full ordered bring-up from existing `.env` files |
 
-`--only` accepts a role (`infra`, `portal`, `species`) or one stack: its species
-code, checkout name, Compose project name, or `species:<checkout>`. Omit
-`--only` to select every stack. For example, `emobase up --only Tcas`.
+Without `--only`, a command acts on every stack. `--only` accepts a role
+(`infra`, `portal`, `species`) or one stack: its species code, checkout name,
+Compose project name, or `species:<checkout>`. For example,
+`emobase up --only Tcas`.
 
 Use `--dry-run` on `create`, `sync`, `up`, `down`, `update` and `bootstrap` to
 print every command instead of running it. `--no-color`, `NO_COLOR` and `--json` are
