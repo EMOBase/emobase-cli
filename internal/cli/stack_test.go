@@ -34,7 +34,6 @@ func TestSelectStacksByRoleAndReference(t *testing.T) {
 		want []string
 	}{
 		{"default", "", []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"}},
-		{"all alias", "all", []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"}},
 		{"infra role", "infra", []string{"emobase-infra"}},
 		{"portal role", "portal", []string{"emobase-portal-deploy"}},
 		{"species role", "species", []string{"emobase-deploy-tcas"}},
@@ -64,6 +63,25 @@ func TestSelectStacksByRoleAndReference(t *testing.T) {
 
 	if _, err := selectStacks(ws, "missing-stack"); err == nil {
 		t.Fatal("expected an error for an unknown stack")
+	}
+	if _, err := selectStacks(ws, "all"); err == nil {
+		t.Fatal("expected all to be treated as a missing stack, not a role")
+	}
+}
+
+func TestSelectStacksTreatsAllAsAStackName(t *testing.T) {
+	root := t.TempDir()
+	mkCLIStack(t, root, "all", testSpeciesCompose, "MAIN_SPECIES=All\nPUBLIC_SERVER=http://localhost:9090\n")
+	ws, err := workspace.Discover(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := selectStacks(ws, "all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Name != "all" {
+		t.Fatalf("selectStacks(all) = %#v", got)
 	}
 }
 

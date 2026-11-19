@@ -11,7 +11,7 @@ import (
 
 func selectStacks(ws *workspace.Workspace, only string) ([]*workspace.Stack, error) {
 	switch strings.ToLower(strings.TrimSpace(only)) {
-	case "", "all":
+	case "":
 		return ws.All(), nil
 	case "infra":
 		if ws.Infra == nil {
