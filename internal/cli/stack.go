@@ -32,7 +32,7 @@ func selectStacks(ws *workspace.Workspace, only string) ([]*workspace.Stack, err
 		if st := findStack(ws, only); st != nil {
 			return []*workspace.Stack{st}, nil
 		}
-		return nil, fmt.Errorf("unknown --only %q (use infra, portal, species, all, or a species/checkout name)", only)
+		return nil, fmt.Errorf("unknown --only %q (use infra, portal, species, or a species/checkout name)", only)
 	}
 }
 
@@ -88,7 +88,7 @@ func (a *App) upCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
+	cmd.Flags().StringVar(&only, "only", "", "infra, portal, species, or a species/checkout name")
 	cmd.Flags().BoolVar(&pull, "pull", false, "pull images before starting")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print commands without running them")
 	return cmd
@@ -124,7 +124,7 @@ func (a *App) downCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
+	cmd.Flags().StringVar(&only, "only", "", "infra, portal, species, or a species/checkout name")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print commands without running them")
 	return cmd
 }
@@ -174,7 +174,7 @@ func (a *App) updateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
+	cmd.Flags().StringVar(&only, "only", "", "infra, portal, species, or a species/checkout name")
 	cmd.Flags().BoolVar(&noGit, "no-git", false, "skip git pull")
 	cmd.Flags().BoolVar(&skipMigrations, "skip-migrations", false, "skip portal migrations")
 	cmd.Flags().BoolVar(&skipSmoke, "skip-smoke", false, "skip the portal smoke test")

@@ -143,7 +143,7 @@ Use --dry-run to print the exact commands without running them.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
+	cmd.Flags().StringVar(&only, "only", "", "infra, portal, species, or a species/checkout name")
 	cmd.Flags().BoolVar(&noPull, "no-pull", false, "skip image pulls")
 	cmd.Flags().BoolVar(&skipSetup, "skip-setup", false, "skip the one-shot JBrowse2 setup")
 	cmd.Flags().BoolVar(&skipMigrations, "skip-migrations", false, "skip portal migrations")

@@ -34,7 +34,7 @@ func TestSelectStacksByRoleAndReference(t *testing.T) {
 		want []string
 	}{
 		{"default", "", []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"}},
-		{"all", "all", []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"}},
+		{"all alias", "all", []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"}},
 		{"infra role", "infra", []string{"emobase-infra"}},
 		{"portal role", "portal", []string{"emobase-portal-deploy"}},
 		{"species role", "species", []string{"emobase-deploy-tcas"}},
