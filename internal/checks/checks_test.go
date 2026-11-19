@@ -262,6 +262,57 @@ func TestEmptyComposeProjectNameIsFilled(t *testing.T) {
 	}
 }
 
+func TestSpeciesComposeOverlayIsAdded(t *testing.T) {
+	root, envs := fixture(t)
+	dir := filepath.Join(root, "emobase-deploy-tcas")
+	if err := os.WriteFile(filepath.Join(dir, "compose.tcas.yml"), []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ws := discover(t, root, envs)
+
+	rep := Run(ws)
+	f := find(rep, "compose.species_overlay")
+	if f == nil {
+		t.Fatal("expected compose.species_overlay")
+	}
+	if f.Fix != FixSafe || !f.CanApply(false) {
+		t.Fatalf("fix = %v, applicable = %v", f.Fix, f.CanApply(false))
+	}
+	if _, err := Apply(ws, rep, false); err != nil {
+		t.Fatal(err)
+	}
+	ws = reload(t, root)
+	if got, _ := ws.Species[0].Get("COMPOSE_FILE"); got != "compose.yml:compose.tcas.yml" {
+		t.Fatalf("COMPOSE_FILE = %q", got)
+	}
+	if find(Run(ws), "compose.species_overlay") != nil {
+		t.Fatal("finding should be resolved")
+	}
+}
+
+func TestSpeciesComposeOverlayLeavesOtherFiles(t *testing.T) {
+	root, envs := fixture(t)
+	dir := filepath.Join(root, "emobase-deploy-tcas")
+	if err := os.WriteFile(filepath.Join(dir, "compose.tcas.yml"), []byte("services: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	envs["emobase-deploy-tcas"]["COMPOSE_FILE"] = "compose.yml:compose.extra.yml"
+	ws := discover(t, root, envs)
+
+	rep := Run(ws)
+	f := find(rep, "compose.species_overlay")
+	if f == nil {
+		t.Fatal("expected compose.species_overlay")
+	}
+	if _, err := Apply(ws, rep, false); err != nil {
+		t.Fatal(err)
+	}
+	ws = reload(t, root)
+	if got, _ := ws.Species[0].Get("COMPOSE_FILE"); got != "compose.yml:compose.extra.yml:compose.tcas.yml" {
+		t.Fatalf("COMPOSE_FILE = %q", got)
+	}
+}
+
 func TestTrailingSlashIsSafeFix(t *testing.T) {
 	root, envs := fixture(t)
 	envs["emobase-infra"]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8181/keycloak/"

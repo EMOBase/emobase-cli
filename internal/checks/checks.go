@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -259,6 +261,7 @@ func Run(w *workspace.Workspace) *Report {
 		}
 		checkRequired(r, sp, spec.RequiredSpecies)
 		checkSpeciesProjectName(r, sp)
+		checkSpeciesComposeOverlay(r, sp)
 		checkESIndexPrefix(r, sp)
 		checkShared(r, w, sp)
 		checkSpeciesRealm(r, sp)
@@ -307,6 +310,64 @@ func checkSpeciesProjectName(r *Report, st *workspace.Stack) {
 		Hint:     fmt.Sprintf("`emobase doctor --fix` sets it to %q", want),
 		apply:    setter(st, "COMPOSE_PROJECT_NAME", want, false),
 	})
+}
+
+// checkSpeciesComposeOverlay keeps a species overlay (for example
+// compose.tcas.yml) in COMPOSE_FILE. Compose reads COMPOSE_FILE from .env, so
+// this makes plain `docker compose` commands and the CLI include the extra
+// services without repeating -f flags everywhere.
+func checkSpeciesComposeOverlay(r *Report, st *workspace.Stack) {
+	code, ok := st.Get("MAIN_SPECIES")
+	if !ok {
+		return
+	}
+	slug := speciesSlug(code)
+	if slug == "" {
+		return
+	}
+	overlay := "compose." + slug + ".yml"
+	if info, err := os.Stat(filepath.Join(st.Dir, overlay)); err != nil || info.IsDir() {
+		return
+	}
+	value, _ := st.Get("COMPOSE_FILE")
+	if composeFileListed(value, overlay) {
+		return
+	}
+	want := strings.TrimSpace(value)
+	if want == "" {
+		want = "compose.yml"
+	}
+	want += ":" + overlay
+	r.add(Finding{
+		Check:    "compose.species_overlay",
+		Scope:    scopeOf(st),
+		Severity: Warn,
+		Fix:      FixSafe,
+		Message:  overlay + " is not listed in COMPOSE_FILE",
+		Hint:     fmt.Sprintf("`emobase doctor --fix` sets COMPOSE_FILE=%s", want),
+		apply:    setter(st, "COMPOSE_FILE", want, false),
+	})
+}
+
+// speciesSlug mirrors the lowercase code init.sh writes to .env.
+func speciesSlug(code string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(strings.TrimSpace(code)) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '_':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+func composeFileListed(value, name string) bool {
+	for _, f := range strings.Split(value, ":") {
+		if strings.TrimSpace(f) == name {
+			return true
+		}
+	}
+	return false
 }
 
 // checkESIndexPrefix validates the species' slice of the shared Elasticsearch

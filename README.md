@@ -218,6 +218,7 @@ global.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - Every checkout using the same realm uses the same client ID and secret.
 - `COMPOSE_PROJECT_NAME` is set and unique.
+- A species overlay such as `compose.tcas.yml` is listed in `COMPOSE_FILE`.
 - The ownership ledger matches active stacks and their database/realm names.
 - No `change-me` placeholders remain.
 
@@ -231,7 +232,7 @@ Findings advertise what it takes to resolve them:
 
 | Class | Behaviour |
 | --- | --- |
-| `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, adds a derived Compose project name. |
+| `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, adds a derived Compose project name and lists species Compose overlays. |
 | `choose` | Applied only by `doctor --fix --yes`. A real conflict, for example a mismatched MySQL password. Accepts infra's value. |
 | `destructive` | Never applied automatically. Changing a Keycloak issuer/origin after the realm was created needs a manual realm update or a reset. `doctor` only reports it. |
 
