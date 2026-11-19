@@ -50,10 +50,10 @@ cd work
 #    default; press Enter to accept it.
 emobase create infra
 emobase create portal
-emobase create species       # the species code is required, for example Tcas
+emobase create species Tcas  # the species code is required
 
 # Add another species. It gets its own checkout, port and Directus database.
-emobase create species
+emobase create species Dmel
 
 # 2. Validate and repair the cross-repository contract.
 emobase doctor
@@ -62,7 +62,7 @@ emobase doctor
 emobase bootstrap
 ```
 
-The species code has no default: you must type it, for example `Tcas`.
+The species code has no default: pass it as an argument, for example `emobase create species Tcas`.
 
 `create` only writes `.env` files; it does not start containers. The species
 setup prompt appears only when infra is running. Use `emobase bootstrap` to
@@ -77,15 +77,15 @@ Without `--local`, URL questions default to the host's primary IPv4 address
 its public IP or domain instead. `--local` uses `localhost` for a same-machine
 trial.
 
-Every question can also be answered by a flag, which is useful for automation.
-A value passed as a flag skips only that question. `--yes` accepts every
-default without prompting:
+Every other question can also be answered by a flag, which is useful for
+automation. A value passed as a flag skips only that question. `--yes` accepts
+every default without prompting:
 
 ```sh
 # Local trial without questions.
 emobase --yes create infra --local
 emobase --yes create portal --local
-emobase --yes create species --species Tcas --local
+emobase --yes create species Tcas --local
 emobase bootstrap
 
 # Server deployment: answer only the URL questions.
@@ -93,7 +93,7 @@ emobase create infra \
   --keycloak-public-url https://auth.example.org/keycloak
 
 emobase create portal --public-server https://portal.example.org
-emobase create species --species Tcas \
+emobase create species Tcas \
   --public-server https://tcas.example.org
 emobase bootstrap
 ```
@@ -187,10 +187,10 @@ prunes.
 | `emobase credential show [stack]` | Seed users per realm plus the Keycloak admin; passwords only when a stack is named |
 | `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
 | `emobase species list` | List discovered species checkouts |
-| `emobase species add ...` | Same as `emobase create species` |
+| `emobase species add [code]` | Same as `emobase create species` |
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
 | `emobase species remove <ref> [--purge --yes] [--keep-dir]` | Show (or execute) teardown commands and remove the checkout |
-| `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
+| `emobase create infra\|portal\|species [code]` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
 | `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
 | `emobase prune [--yes]` | Remove state-owned databases, realms and index prefixes left by deleted stacks |
 | `emobase up [--only <role\|stack>] [--pull]` | Start in dependency order |

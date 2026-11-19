@@ -273,15 +273,14 @@ func (a *App) createSpeciesCmd() *cobra.Command { return a.newSpeciesAddCmd("spe
 func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	o := &speciesOpts{}
 	cmd := &cobra.Command{
-		Use:   use,
+		Use:   use + " [code]",
 		Short: "Scaffold a species checkout (one emobase-deploy clone per species)",
-		Args:  cobra.NoArgs,
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.runSpeciesAdd(cmd, o)
+			return a.runSpeciesAdd(cmd, o, args)
 		},
 	}
 	f := cmd.Flags()
-	f.StringVarP(&o.species, "species", "s", "", "4-letter species code, e.g. Tcas (asked when omitted; no default)")
 	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/<species>; asked when interactive)")
 	f.StringVar(&o.publicServer, "public-server", "", "species PUBLIC_SERVER")
 	f.StringVar(&o.httpPort, "http-port", "", "host port (default 9090)")
@@ -306,14 +305,17 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	return cmd
 }
 
-func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
+func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts, refs []string) error {
 	root, err := workspace.ResolveRoot(a.WorkspaceFlag)
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(o.species) == "" {
+	if len(refs) == 1 {
+		o.species = strings.TrimSpace(refs[0])
+	}
+	if o.species == "" {
 		if a.Yes {
-			return fmt.Errorf("pass --species CODE (e.g. --species Tcas)")
+			return fmt.Errorf("pass a species code, for example: emobase create species Tcas")
 		}
 		code, err := promptRequired(cmd, "Species code", "Tcas")
 		if err != nil {
@@ -323,7 +325,7 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts) error {
 	}
 	slug := speciesSlug(o.species)
 	if slug == "" {
-		return fmt.Errorf("invalid --species %q", o.species)
+		return fmt.Errorf("invalid species code %q", o.species)
 	}
 	if o.dir == "" {
 		o.dir, err = a.promptCheckoutDir(cmd, root, filepath.Join(root, speciesDirName(o.species)))

@@ -130,7 +130,7 @@ func renderSpecies(rows []speciesRow) string {
 	var b strings.Builder
 	if len(rows) == 0 {
 		fmt.Fprintln(&b, "No species checkouts found.")
-		fmt.Fprintln(&b, muted("Add one with: emobase species add --species Tcas --public-server https://tcas.example.org --clone"))
+		fmt.Fprintln(&b, muted("Add one with: emobase species add Tcas --public-server https://tcas.example.org --clone"))
 		return b.String()
 	}
 	var table [][]string

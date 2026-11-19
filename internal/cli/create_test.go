@@ -28,13 +28,45 @@ func TestCreateSpeciesUsesCodeAsDirectory(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetIn(strings.NewReader(""))
-	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "species", "--species", "Tcas", "--local", "--dry-run"})
+	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "species", "Tcas", "--local", "--dry-run"})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
 	if want := filepath.Join(root, "Tcas"); !strings.Contains(out.String(), want) {
 		t.Fatalf("expected the checkout at %s, output:\n%s", want, out.String())
+	}
+}
+
+func TestSpeciesAddAcceptsPositionalCode(t *testing.T) {
+	root := t.TempDir()
+	cmd := New()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetArgs([]string{"--workspace", root, "--yes", "species", "add", "Tcas", "--local", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(root, "Tcas"); !strings.Contains(out.String(), want) {
+		t.Fatalf("expected the checkout at %s, output:\n%s", want, out.String())
+	}
+}
+
+func TestCreateSpeciesRequiresCodeWithYes(t *testing.T) {
+	root := t.TempDir()
+	cmd := New()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "species", "--local", "--dry-run"})
+
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "pass a species code") {
+		t.Fatalf("err = %v, output:\n%s", err, out.String())
 	}
 }
 
@@ -69,7 +101,7 @@ func TestCreateSpeciesUsesDiscoveredInfraDir(t *testing.T) {
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetIn(strings.NewReader(""))
-	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "species", "--species", "Tcas", "--local", "--dry-run"})
+	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "species", "Tcas", "--local", "--dry-run"})
 
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
