@@ -178,7 +178,7 @@ func (a *App) collectCredentialRows(ctx context.Context, ws *workspace.Workspace
 }
 
 func (a *App) credentialDetail(cmd *cobra.Command, ws *workspace.Workspace, ref string) error {
-	st := findCredentialStack(ws, ref)
+	st := findStack(ws, ref)
 	if st == nil {
 		return fmt.Errorf("no stack matches %q (try emobase species list)", ref)
 	}
@@ -350,20 +350,23 @@ func keycloakAdminURL(ws *workspace.Workspace) string {
 	return strings.TrimRight(base, "/") + "/admin/"
 }
 
-func findCredentialStack(ws *workspace.Workspace, ref string) *workspace.Stack {
+func findStack(ws *workspace.Workspace, ref string) *workspace.Stack {
 	ref = strings.TrimSpace(ref)
 	// Accept the label shown in the fleet table, e.g. species:emobase-deploy-lsta,
 	// as well as the checkout name, species code or Compose project name.
 	if len(ref) > len("species:") && strings.EqualFold(ref[:len("species:")], "species:") {
 		ref = ref[len("species:"):]
 	}
-	if ws.Portal != nil && matchesCredentialRef(ws.Portal, ref) {
+	if isInfraRef(ws, ref) {
+		return ws.Infra
+	}
+	if ws.Portal != nil && matchesStackRef(ws.Portal, ref) {
 		return ws.Portal
 	}
 	return ws.FindSpecies(ref)
 }
 
-func matchesCredentialRef(st *workspace.Stack, ref string) bool {
+func matchesStackRef(st *workspace.Stack, ref string) bool {
 	if strings.EqualFold(st.Name, ref) || strings.EqualFold(st.Dir, ref) {
 		return true
 	}

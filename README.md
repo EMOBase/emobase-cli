@@ -193,10 +193,14 @@ prunes.
 | `emobase create infra\|portal\|species` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
 | `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
 | `emobase prune [--yes]` | Remove state-owned databases, realms and index prefixes left by deleted stacks |
-| `emobase up [--only infra\|portal\|species] [--pull]` | Start in dependency order |
+| `emobase up [--only <role\|stack>] [--pull]` | Start in dependency order |
 | `emobase down [--only ...]` | Stop dependants first |
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
 | `emobase bootstrap [--only ...] [--dry-run]` | Full ordered bring-up from existing `.env` files |
+
+`--only` accepts a role (`infra`, `portal`, `species`, `all`) or one stack:
+its species code, checkout name, Compose project name, or `species:<checkout>`.
+For example, `emobase up --only Tcas`.
 
 Use `--dry-run` on `create`, `sync`, `up`, `down`, `update` and `bootstrap` to
 print every command instead of running it. `--no-color`, `NO_COLOR` and `--json` are

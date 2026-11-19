@@ -34,12 +34,23 @@ Use --dry-run to print the exact commands without running them.`,
 			out := cmd.OutOrStdout()
 			r := &scaffold.Runner{DryRun: dryRun, Stdout: out, Stderr: cmd.ErrOrStderr()}
 
-			doInfra := only == "" || only == "all" || only == "infra"
-			doPortal := only == "" || only == "all" || only == "portal"
-			doSpecies := only == "" || only == "all" || only == "species"
-			if !doInfra && !doPortal && !doSpecies {
-				return fmt.Errorf("unknown --only %q (use infra, portal, species or all)", only)
+			selected, err := selectStacks(ws, only)
+			if err != nil {
+				return err
 			}
+			var species []*workspace.Stack
+			doInfra, doPortal := false, false
+			for _, st := range selected {
+				switch st.Role {
+				case workspace.RoleInfra:
+					doInfra = true
+				case workspace.RolePortal:
+					doPortal = true
+				case workspace.RoleSpecies:
+					species = append(species, st)
+				}
+			}
+			doSpecies := len(species) > 0
 
 			var missing []string
 			addMissing := func(st *workspace.Stack) {
@@ -54,7 +65,7 @@ Use --dry-run to print the exact commands without running them.`,
 				addMissing(ws.Portal)
 			}
 			if doSpecies {
-				for _, sp := range ws.Species {
+				for _, sp := range species {
 					addMissing(sp)
 				}
 			}
@@ -120,7 +131,7 @@ Use --dry-run to print the exact commands without running them.`,
 				}
 			}
 			if doSpecies {
-				for _, sp := range ws.Species {
+				for _, sp := range species {
 					fmt.Fprintln(out, title("Species "+sp.Name))
 					if err := a.setupSpecies(cmd, ws, sp, r); err != nil {
 						return err
@@ -132,7 +143,7 @@ Use --dry-run to print the exact commands without running them.`,
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species or all")
+	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
 	cmd.Flags().BoolVar(&noPull, "no-pull", false, "skip image pulls")
 	cmd.Flags().BoolVar(&skipSetup, "skip-setup", false, "skip the one-shot JBrowse2 setup")
 	cmd.Flags().BoolVar(&skipMigrations, "skip-migrations", false, "skip portal migrations")

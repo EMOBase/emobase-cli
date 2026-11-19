@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/EMOBase/emobase-cli/internal/scaffold"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
@@ -9,7 +10,7 @@ import (
 )
 
 func selectStacks(ws *workspace.Workspace, only string) ([]*workspace.Stack, error) {
-	switch only {
+	switch strings.ToLower(strings.TrimSpace(only)) {
 	case "", "all":
 		return ws.All(), nil
 	case "infra":
@@ -28,7 +29,10 @@ func selectStacks(ws *workspace.Workspace, only string) ([]*workspace.Stack, err
 		}
 		return ws.Species, nil
 	default:
-		return nil, fmt.Errorf("unknown --only %q (use infra, portal, species or all)", only)
+		if st := findStack(ws, only); st != nil {
+			return []*workspace.Stack{st}, nil
+		}
+		return nil, fmt.Errorf("unknown --only %q (use infra, portal, species, all, or a species/checkout name)", only)
 	}
 }
 
@@ -84,7 +88,7 @@ func (a *App) upCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species or all")
+	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
 	cmd.Flags().BoolVar(&pull, "pull", false, "pull images before starting")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print commands without running them")
 	return cmd
@@ -120,7 +124,7 @@ func (a *App) downCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species or all")
+	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print commands without running them")
 	return cmd
 }
@@ -170,7 +174,7 @@ func (a *App) updateCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species or all")
+	cmd.Flags().StringVar(&only, "only", "all", "infra, portal, species, all, or a species/checkout name")
 	cmd.Flags().BoolVar(&noGit, "no-git", false, "skip git pull")
 	cmd.Flags().BoolVar(&skipMigrations, "skip-migrations", false, "skip portal migrations")
 	cmd.Flags().BoolVar(&skipSmoke, "skip-smoke", false, "skip the portal smoke test")
