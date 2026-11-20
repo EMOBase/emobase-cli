@@ -438,11 +438,19 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts, refs []string) e
 			}
 			fmt.Fprintln(cmd.OutOrStdout())
 		} else {
-			fmt.Fprintln(cmd.OutOrStdout(), muted("Infra is not running; the species realm and database will be created by emobase species setup or emobase bootstrap."))
+			fmt.Fprintln(cmd.OutOrStdout(), muted("Infra is not running; the species realm and database will be created during setup."))
 		}
 		fmt.Fprintln(cmd.OutOrStdout())
 		fmt.Fprintln(cmd.OutOrStdout(), "Created "+sp.EnvPath)
-		fmt.Fprintln(cmd.OutOrStdout(), "Next: start infra, then run: emobase species setup "+filepath.Base(o.dir))
+		name := filepath.Base(o.dir)
+		if infraUp {
+			fmt.Fprintln(cmd.OutOrStdout(), "Next: emobase species setup "+name)
+		} else {
+			// bootstrap starts infra in the right order and then sets up every
+			// scaffolded stack; species setup is the narrow alternative once
+			// infra is already up.
+			fmt.Fprintln(cmd.OutOrStdout(), "Next: emobase bootstrap "+muted("(or start infra, then: emobase species setup "+name+")"))
+		}
 		return nil
 	}
 	if !infraUp {
