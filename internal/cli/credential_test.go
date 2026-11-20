@@ -153,7 +153,7 @@ func TestCredentialNamedStackPrintsItsOwnCopy(t *testing.T) {
 	}
 }
 
-func TestCredentialChangedStateReportsDeadPassword(t *testing.T) {
+func TestCredentialChangedStateShowsStoredPassword(t *testing.T) {
 	root := credentialFixture(t)
 	out, errb, code := runCLI(t, "--workspace", root, "--no-color", "credential", "show", "dmel")
 	if code != 0 {
@@ -162,11 +162,11 @@ func TestCredentialChangedStateReportsDeadPassword(t *testing.T) {
 	if !strings.Contains(out, "coco") {
 		t.Errorf("expected the username:\n%s", out)
 	}
-	if !strings.Contains(out, "changed") || !strings.Contains(out, "no longer works") {
-		t.Errorf("expected the changed state:\n%s", out)
-	}
-	if strings.Contains(out, "dmel-seed-456") {
-		t.Errorf("a replaced password must not be printed:\n%s", out)
+	// The stored copy stays visible for reference, but the state is unambiguous.
+	for _, want := range []string{"password: dmel-seed-456 (seed)", "already changed at first sign-in"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output is missing %q:\n%s", want, out)
+		}
 	}
 	// The reset instruction must name the console, the realm and the user.
 	for _, want := range []string{"Reset it at", "admin/", "realm ibb_dmel", "Users → coco → Credentials"} {
@@ -264,25 +264,27 @@ func TestCredentialInfraReportsRejectedAdminLogin(t *testing.T) {
 	}
 }
 
-// TestCredentialDivergenceSuppressedWhenSeedReplaced pins the rule that the
-// divergence note only appears while a copy could still be live.
-func TestCredentialDivergenceSuppressedWhenSeedReplaced(t *testing.T) {
+// TestCredentialChangedSeedShowsCopyWithoutDivergenceWarning pins both rules:
+// the detail view keeps the stored copy for reference, but the fleet view does
+// not treat a post-first-sign-in copy as a live candidate.
+func TestCredentialChangedSeedShowsCopyWithoutDivergenceWarning(t *testing.T) {
 	row := credentialRow{
 		Stack: "species:emobase-deploy-lsta", Realm: "emobase-portal", User: "coco",
 		Seed: string(stateChanged), Source: "/srv/emobase/emobase-deploy-lsta",
 		CopyDiffers: true, Password: "dead-seed",
 	}
-	if old := renderCredentialDetail(row, "https://auth.example.org/keycloak/admin/"); strings.Contains(old, "dead-seed") {
-		t.Errorf("a replaced seed must not be printed:\n%s", old)
+	if out := renderCredentialDetail(row, "https://auth.example.org/keycloak/admin/"); !strings.Contains(out, "dead-seed") {
+		t.Errorf("a changed seed should still show the stored copy:\n%s", out)
 	}
 	if out := renderCredentialList([]credentialRow{row}); strings.Contains(out, "store different COCO_PASSWORD") {
 		t.Errorf("changed seed must not carry a divergence note:\n%s", out)
 	}
 }
 
-// TestCredentialJSONDetailGatesPassword pins the same rule for --json: the
-// password is present only while the seed is unused.
-func TestCredentialJSONDetailGatesPassword(t *testing.T) {
+// TestCredentialJSONDetailIncludesStoredPassword pins the same rule for --json:
+// a completed first sign-in keeps the stored copy and its state, because the
+// user may have reused the same password.
+func TestCredentialJSONDetailIncludesStoredPassword(t *testing.T) {
 	root := credentialFixture(t)
 
 	out, errb, code := runCLI(t, "--workspace", root, "--no-color", "--json", "credential", "show", "tcas")
@@ -297,8 +299,8 @@ func TestCredentialJSONDetailGatesPassword(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit = %d, stderr = %s", code, errb)
 	}
-	if strings.Contains(out, "dmel-seed-456") || strings.Contains(out, "\"password\"") {
-		t.Errorf("replaced seed must omit the password in JSON:\n%s", out)
+	if !strings.Contains(out, "dmel-seed-456") || !strings.Contains(out, "\"seed\": \"changed\"") {
+		t.Errorf("changed seed should expose the stored password and its state:\n%s", out)
 	}
 }
 

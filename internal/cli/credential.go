@@ -70,8 +70,8 @@ authoritative, because the file cannot tell which copy Keycloak hashed. Verify b
 signing in.
 
 The seed password is created as temporary, so Keycloak asks for a new one at
-first sign-in. Once that has happened, the stored value no longer works; reset
-it in the Keycloak admin console instead.`,
+first sign-in. The detail view still shows the stored value for reference;
+reset it in the Keycloak admin console if you need a working login.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ws, err := a.Workspace()
@@ -169,8 +169,8 @@ func (a *App) collectCredentialRows(ctx context.Context, ws *workspace.Workspace
 			Seed:   string(state),
 			Source: st.Dir,
 			// Divergent copies only matter while a seed password can still be
-			// live; once it was replaced, every copy is dead and the warning
-			// would be misleading.
+			// live; once the first sign-in replaced it, the copies are
+			// historical and the warning would be misleading.
 			CopyDiffers: seedCanBeLive(state) && copiesDiffer(stacks, realm, user, pass),
 		})
 	}
@@ -199,9 +199,6 @@ func (a *App) credentialDetail(cmd *cobra.Command, ws *workspace.Workspace, ref 
 	}
 
 	if a.JSON {
-		if state != stateUnused {
-			row.Password = ""
-		}
 		return writeCredentialJSON(cmd.OutOrStdout(), ws.Root, []credentialRow{row})
 	}
 	fmt.Fprint(cmd.OutOrStdout(), renderCredentialDetail(row, keycloakAdminURL(ws)))
@@ -256,9 +253,9 @@ func renderCredentialList(rows []credentialRow) string {
 	return b.String()
 }
 
-// renderCredentialDetail prints the seed login for one stack. Only an unused
-// seed password is worth showing with a label; every other state is explained
-// as a sentence so it cannot be mistaken for the password itself.
+// renderCredentialDetail prints the seed login for one stack. The stored copy
+// is shown after the first sign-in too, marked "(seed)", so it can be kept for
+// reference even though Keycloak has already replaced it.
 func renderCredentialDetail(r credentialRow, adminURL string) string {
 	var b strings.Builder
 
@@ -267,7 +264,8 @@ func renderCredentialDetail(r credentialRow, adminURL string) string {
 	case stateUnused:
 		fmt.Fprintf(&b, "password: %s\n", r.Password)
 	case stateChanged:
-		fmt.Fprintln(&b, "The seed password was already changed at first sign-in, so the stored value no longer works.")
+		fmt.Fprintf(&b, "password: %s (seed)\n", r.Password)
+		fmt.Fprintln(&b, "The seed password was already changed at first sign-in.")
 		console := "the Keycloak admin console"
 		if adminURL != "" {
 			console = adminURL
