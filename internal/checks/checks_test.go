@@ -519,6 +519,23 @@ func TestRemotePortalDoesNotWarnAboutInternalURL(t *testing.T) {
 	}
 }
 
+func TestRemotePortalDoesNotRequireInternalURLs(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PORTAL_INTERNAL_URL"] = ""
+	envs["emobase-deploy-tcas"]["INTERNAL_API_GENOMICS_SERVICE"] = ""
+	if err := os.RemoveAll(filepath.Join(root, "emobase-portal-deploy")); err != nil {
+		t.Fatal(err)
+	}
+	delete(envs, "emobase-portal-deploy")
+
+	rep := Run(discover(t, root, envs))
+	for _, key := range []string{"required.PORTAL_INTERNAL_URL", "required.INTERNAL_API_GENOMICS_SERVICE"} {
+		if f := find(rep, key); f != nil {
+			t.Fatalf("%s reported for a remote portal: %#v", key, f)
+		}
+	}
+}
+
 func TestChangeJSONMasksSecrets(t *testing.T) {
 	c := Change{Scope: "portal", Key: "MYSQL_ROOT_PASSWORD", Old: "old-secret", New: "new-secret", Secret: true}
 	b, err := json.Marshal(c)
