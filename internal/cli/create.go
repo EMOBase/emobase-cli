@@ -223,7 +223,8 @@ func (a *App) createPortalCmd() *cobra.Command {
 				return fmt.Errorf("%s has no PUBLIC_SERVER", ws.Portal.EnvPath)
 			}
 			fmt.Fprintln(cmd.OutOrStdout())
-			if infraReady(cmd.Context(), ws) {
+			infraUp := infraReady(cmd.Context(), ws)
+			if infraUp {
 				fmt.Fprintln(cmd.OutOrStdout(), title("Database"))
 				if err := ensurePortalDatabase(r, ws, ws.Portal); err != nil {
 					return err
@@ -239,9 +240,16 @@ func (a *App) createPortalCmd() *cobra.Command {
 					return err
 				}
 			} else {
-				fmt.Fprintln(cmd.OutOrStdout(), muted("Infra is not running; the portal database and realm will be created by emobase up or emobase bootstrap."))
+				fmt.Fprintln(cmd.OutOrStdout(), muted("Infra is not running; the portal database and realm will be created during setup."))
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Created "+ws.Portal.EnvPath)
+			if infraUp {
+				fmt.Fprintln(cmd.OutOrStdout(), "Next: emobase bootstrap --only portal")
+			} else {
+				// bootstrap starts infra in the right order; --only portal
+				// finishes the portal without touching other stacks.
+				fmt.Fprintln(cmd.OutOrStdout(), "Next: emobase bootstrap "+muted("(or start infra, then: emobase bootstrap --only portal)"))
+			}
 			return nil
 		},
 	}
