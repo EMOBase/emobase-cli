@@ -536,6 +536,36 @@ func TestRemotePortalDoesNotRequireInternalURLs(t *testing.T) {
 	}
 }
 
+func TestRemotePortalConfiguredDoesNotWarn(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PORTAL_SERVER"] = "https://portal.example.org"
+	if err := os.RemoveAll(filepath.Join(root, "emobase-portal-deploy")); err != nil {
+		t.Fatal(err)
+	}
+	delete(envs, "emobase-portal-deploy")
+
+	if f := find(Run(discover(t, root, envs)), "workspace.portal"); f != nil {
+		t.Fatalf("workspace.portal reported with a remote portal configured: %#v", f)
+	}
+}
+
+func TestRemotePortalWithoutPortalServerWarns(t *testing.T) {
+	root, envs := fixture(t)
+	delete(envs["emobase-deploy-tcas"], "PORTAL_SERVER")
+	if err := os.RemoveAll(filepath.Join(root, "emobase-portal-deploy")); err != nil {
+		t.Fatal(err)
+	}
+	delete(envs, "emobase-portal-deploy")
+
+	rep := Run(discover(t, root, envs))
+	if f := find(rep, "workspace.portal"); f == nil || f.Severity != Warn {
+		t.Fatalf("workspace.portal finding = %#v", f)
+	}
+	if f := find(rep, "species.portal_server"); f == nil || f.Severity != Error {
+		t.Fatalf("species.portal_server finding = %#v", f)
+	}
+}
+
 func TestChangeJSONMasksSecrets(t *testing.T) {
 	c := Change{Scope: "portal", Key: "MYSQL_ROOT_PASSWORD", Old: "old-secret", New: "new-secret", Secret: true}
 	b, err := json.Marshal(c)

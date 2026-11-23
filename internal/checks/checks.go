@@ -209,6 +209,22 @@ func scopeOf(s *workspace.Stack) string {
 	}
 }
 
+// needsRemotePortal reports whether a workspace without a local portal
+// checkout still lacks a remote portal target. Once every species has a
+// PORTAL_SERVER, falling back to a remote portal is a valid setup and there is
+// nothing to warn about.
+func needsRemotePortal(w *workspace.Workspace) bool {
+	for _, sp := range w.Species {
+		if sp.MissingEnv {
+			continue
+		}
+		if v, ok := sp.Get("PORTAL_SERVER"); !ok || spec.IsPlaceholder(v) {
+			return true
+		}
+	}
+	return false
+}
+
 // Run evaluates every static check.
 func Run(w *workspace.Workspace) *Report {
 	r := &Report{Root: w.Root}
@@ -223,7 +239,7 @@ func Run(w *workspace.Workspace) *Report {
 			Hint:     "clone emobase-infra next to this workspace: `git clone https://github.com/EMOBase/emobase-infra.git`",
 		})
 	}
-	if w.Portal == nil && len(w.Species) > 0 {
+	if w.Portal == nil && len(w.Species) > 0 && needsRemotePortal(w) {
 		r.add(Finding{
 			Check:    "workspace.portal",
 			Scope:    "workspace",

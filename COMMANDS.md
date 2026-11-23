@@ -84,7 +84,8 @@ This section lists the rules, not the values.
 - Shared keys match the authoritative `emobase-infra` values
   (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL` and
   `EMOBASE_INFRA_NETWORK`).
-- Species `PORTAL_SERVER` values point at the local portal.
+- Species `PORTAL_SERVER` values point at the local portal, or at a remote
+  portal when the workspace has no `emobase-portal-deploy` checkout.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
 - URLs have no trailing slash.
