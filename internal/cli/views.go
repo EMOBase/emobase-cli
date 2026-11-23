@@ -107,9 +107,9 @@ func renderStatus(sr statusReport) string {
 	if !sr.NetworkOK {
 		netState = ui.Severity(checks.Error) + " missing"
 	}
-	fmt.Fprintf(&b, "  network %-28s %s\n", sr.Network, netState)
+	fmt.Fprint(&b, statusLine("network", fmt.Sprintf("%-28s %s", sr.Network, netState)))
 	if sr.Databases != nil {
-		fmt.Fprintf(&b, "  databases                    %v\n", sr.Databases)
+		fmt.Fprint(&b, statusLine("databases", fmt.Sprint(sr.Databases)))
 	}
 	realms := make([]string, 0, len(sr.Realms))
 	for realm := range sr.Realms {
@@ -121,14 +121,19 @@ func renderStatus(sr statusReport) string {
 		if !sr.Realms[realm] {
 			state = ui.Severity(checks.Error) + " unreachable"
 		}
-		fmt.Fprintf(&b, "  realm %-26s %s\n", realm, state)
+		fmt.Fprint(&b, statusLine("realm", fmt.Sprintf("%-28s %s", realm, state)))
 	}
 	if sr.Portal != "" {
-		fmt.Fprintf(&b, "  portal                       %s\n", sr.Portal)
+		fmt.Fprint(&b, statusLine("portal", sr.Portal))
 	}
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, muted("Use emobase doctor --live for actionable checks."))
 	return b.String()
+}
+
+// statusLine keeps the detail labels in one column so their values line up.
+func statusLine(label, value string) string {
+	return fmt.Sprintf("  %-9s  %s\n", label, value)
 }
 
 func speciesRows(ws *workspace.Workspace) []speciesRow {
