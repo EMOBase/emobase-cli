@@ -28,8 +28,31 @@ func renderDashboard(ws *workspace.Workspace, rep *checks.Report) string {
 		printFindings(&b, rep)
 	}
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("Next: emobase doctor --fix   (safe fixes)   |   emobase status"))
+	fmt.Fprintln(&b, muted(nextDashboardStep(rep)))
 	return b.String()
+}
+
+// nextDashboardStep points at the command that can actually make progress.
+// Offering `doctor --fix` when no finding carries a fix is misleading, so fall
+// back to the status screen once the configuration has nothing left to apply.
+func nextDashboardStep(rep *checks.Report) string {
+	safe, choose := false, false
+	for _, f := range rep.Findings {
+		switch {
+		case f.CanApply(false):
+			safe = true
+		case f.CanApply(true):
+			choose = true
+		}
+	}
+	switch {
+	case safe:
+		return "Next: emobase doctor --fix   (safe fixes)   |   emobase status"
+	case choose:
+		return "Next: emobase doctor --fix --yes   (choose fixes)   |   emobase status"
+	default:
+		return "Next: emobase status"
+	}
 }
 
 func renderDoctor(rep *checks.Report, applied []checks.Change, withFix, yes bool) string {
