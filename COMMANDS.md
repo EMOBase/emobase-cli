@@ -101,8 +101,10 @@ This section lists the rules, not the values.
 - No `change-me` placeholders remain.
 
 `--live` additionally checks the Docker daemon, the shared network, container
-health, MySQL databases, Keycloak realm reachability, registered redirect URIs
-and portal/species HTTP endpoints.
+health, MySQL databases, Keycloak realm reachability, registered redirect URIs,
+portal/species HTTP endpoints, and that the app container can fetch
+`INTERNAL_KEYCLOAK_ISSUER` with its own DNS and CA store (TLS, DNS and
+connection errors are reported separately).
 
 ### Fix classes
 

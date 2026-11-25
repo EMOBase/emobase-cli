@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"strings"
 
 	"github.com/EMOBase/emobase-cli/internal/checks"
@@ -205,5 +206,111 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 					"species site is not reachable at "+u, err.Error()))
 			}
 		}
+		probeKeycloakFromApp(ctx, sp, rep)
 	}
+}
+
+// probeKeycloakFromApp verifies INTERNAL_KEYCLOAK_ISSUER from inside the app
+// container. The host can trust a certificate or resolve a name that the
+// container cannot, so a fetch from the host does not prove that the callback
+// token exchange will work.
+func probeKeycloakFromApp(ctx context.Context, sp *workspace.Stack, rep *checks.Report) {
+	if sp.MissingEnv {
+		return
+	}
+	issuer, _ := sp.Get("INTERNAL_KEYCLOAK_ISSUER")
+	issuer = strings.TrimSpace(issuer)
+	if issuer == "" {
+		return
+	}
+	containers, err := live.ComposePS(ctx, sp.Dir)
+	if err != nil {
+		return
+	}
+	appUp := false
+	for _, c := range containers {
+		state := c.State
+		if state == "" {
+			state = c.Status
+		}
+		if c.Service == "fe" && isRunning(state, c.Status) {
+			appUp = true
+			break
+		}
+	}
+	if !appUp {
+		return
+	}
+	endpoint := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
+	out, err := live.ProbeURLInService(ctx, sp.Dir, "fe", endpoint)
+	if err == nil {
+		return
+	}
+	realm, _ := sp.Get("KEYCLOAK_REALM")
+	var reason, hint string
+	if strings.TrimSpace(out) == "" {
+		reason = fmt.Sprintf("the app container did not answer %s within 12s", issuerHost(issuer))
+		hint = "check that emobase-infra is running and INTERNAL_KEYCLOAK_ISSUER points at a reachable host"
+	} else {
+		reason, hint = keycloakProbeHint(out, issuerHost(issuer), strings.TrimSpace(realm))
+	}
+	rep.Add(checks.Advisory("live.keycloak_internal", checks.ScopeOf(sp), checks.Error, reason, hint))
+}
+
+func issuerHost(issuer string) string {
+	u, err := url.Parse(issuer)
+	if err != nil || u.Host == "" {
+		return issuer
+	}
+	return u.Host
+}
+
+// keycloakProbeHint turns the node/undici error from the in-container fetch
+// into a cause and an actionable hint.
+func keycloakProbeHint(out, host, realm string) (string, string) {
+	low := strings.ToLower(out)
+	fallback := "http://host.docker.internal:8181/keycloak/realms/" + realm
+	switch {
+	case strings.Contains(low, "unable_to_verify_leaf_signature"),
+		strings.Contains(low, "self_signed_cert_in_chain"),
+		strings.Contains(low, "cert_has_expired"),
+		strings.Contains(low, "err_tls_cert_altname_invalid"),
+		strings.Contains(low, "certificate"):
+		return fmt.Sprintf("the app container does not trust the TLS certificate at %s", host),
+			fmt.Sprintf("set INTERNAL_KEYCLOAK_ISSUER=%s for a private CA, or mount the CA into fe and set NODE_EXTRA_CA_CERTS", fallback)
+	case strings.Contains(low, "enotfound"):
+		return fmt.Sprintf("the app container cannot resolve %s", host),
+			fmt.Sprintf("the name may exist only in the host's /etc/hosts; set INTERNAL_KEYCLOAK_ISSUER=%s", fallback)
+	case strings.Contains(low, "econnrefused"), strings.Contains(low, "etimedout"), strings.Contains(low, "ehostunreach"):
+		return fmt.Sprintf("the app container cannot connect to %s", host),
+			"check that emobase-infra is running and INTERNAL_KEYCLOAK_ISSUER points at a reachable host"
+	case strings.Contains(low, "status "):
+		return "INTERNAL_KEYCLOAK_ISSUER answered " + probeStatusLine(out),
+			fmt.Sprintf("the issuer path must end with /realms/%s and the realm must exist", realm)
+	default:
+		line := probeFirstLine(out)
+		if line == "" {
+			line = "no output"
+		}
+		return "could not verify INTERNAL_KEYCLOAK_ISSUER from the app container: " + line,
+			"`docker compose exec fe node -e 'fetch(process.env.INTERNAL_KEYCLOAK_ISSUER)'`"
+	}
+}
+
+func probeStatusLine(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if strings.Contains(strings.ToLower(line), "status ") {
+			return strings.TrimSpace(line)
+		}
+	}
+	return "an error status"
+}
+
+func probeFirstLine(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if strings.TrimSpace(line) != "" {
+			return strings.TrimSpace(line)
+		}
+	}
+	return ""
 }

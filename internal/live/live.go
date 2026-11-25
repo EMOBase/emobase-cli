@@ -140,3 +140,17 @@ func HTTPStatus(ctx context.Context, url string) (int, error) {
 	defer resp.Body.Close()
 	return resp.StatusCode, nil
 }
+
+// ProbeURLInService runs a one-shot fetch inside a compose service. It is used
+// for checks that depend on the container's own network and CA trust store,
+// which the host cannot see.
+func ProbeURLInService(ctx context.Context, dir, service, url string) (string, error) {
+	const script = `const u=process.env.PROBE_URL;fetch(u).then(r=>{console.log("status "+r.status);process.exit(r.ok?0:1)}).catch(e=>{console.error((e&&e.code)||e.message||String(e));process.exit(2)})`
+	probeCtx, cancel := context.WithTimeout(ctx, 12*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(probeCtx, "docker", "compose", "exec", "-T",
+		"-e", "PROBE_URL="+url, service, "node", "-e", script)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	return strings.TrimSpace(string(out)), err
+}
