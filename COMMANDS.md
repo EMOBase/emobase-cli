@@ -61,6 +61,7 @@ images.
 | Variable | Meaning | Value |
 | --- | --- | --- |
 | `PUBLIC_SERVER` | The URL users open for this species | e.g. `https://tcas.example.org` |
+| `PUBLIC_HOST` | Hostname part of `PUBLIC_SERVER`; the species nginx serves only this name | e.g. `tcas.example.org` |
 | `PORTAL_SERVER` | Public portal URL used by browser links | the portal's `PUBLIC_SERVER` |
 | `PORTAL_INTERNAL_URL` | Portal URL inside containers | `http://host.docker.internal:<portal port>` for a local portal; unset for a remote portal |
 | `KEYCLOAK_PUBLIC_URL` | This server's Keycloak URL | from `infra/.env` |
@@ -109,7 +110,7 @@ Findings advertise what it takes to resolve them:
 
 | Class | Behaviour |
 | --- | --- |
-| `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, adds a derived Compose project name and lists species Compose overlays. |
+| `safe` | Applied by `doctor --fix`. Fills missing shared values, normalises trailing slashes, keeps `PUBLIC_HOST` equal to the `PUBLIC_SERVER` hostname, adds a derived Compose project name and lists species Compose overlays. |
 | `choose` | Applied only by `doctor --fix --yes`. A real conflict, for example a mismatched MySQL password. Accepts infra's value. |
 | `destructive` | Never applied automatically. Changing a Keycloak issuer/origin after the realm was created needs a manual realm update or a reset. `doctor` only reports it. |
 

@@ -56,6 +56,7 @@ func speciesEnv() map[string]string {
 	return map[string]string{
 		"MAIN_SPECIES":                  "Tcas",
 		"PUBLIC_SERVER":                 "http://localhost:9090",
+		"PUBLIC_HOST":                   "localhost",
 		"HTTP_PORT":                     "9090",
 		"PORTAL_SERVER":                 "http://localhost:9080",
 		"PORTAL_INTERNAL_URL":           "http://host.docker.internal:9080",
@@ -598,5 +599,61 @@ func TestReportSortPutsErrorsFirst(t *testing.T) {
 	rep.Sort()
 	if rep.Findings[0].Severity != Error || rep.Findings[2].Severity != Info {
 		t.Fatalf("order = %v", rep.Findings)
+	}
+}
+
+func TestMissingPublicHostIsFilled(t *testing.T) {
+	root, envs := fixture(t)
+	delete(envs["emobase-deploy-tcas"], "PUBLIC_HOST")
+	ws := discover(t, root, envs)
+
+	rep := Run(ws)
+	f := find(rep, "public_host.missing")
+	if f == nil {
+		t.Fatal("expected public_host.missing")
+	}
+	if f.Fix != FixSafe {
+		t.Fatalf("fix = %v", f.Fix)
+	}
+	if _, err := Apply(ws, rep, false); err != nil {
+		t.Fatal(err)
+	}
+	ws = reload(t, root)
+	if got, _ := ws.Species[0].Get("PUBLIC_HOST"); got != "localhost" {
+		t.Fatalf("PUBLIC_HOST = %q", got)
+	}
+}
+
+func TestStalePublicHostIsFixed(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PUBLIC_HOST"] = "old.example.org"
+	ws := discover(t, root, envs)
+
+	rep := Run(ws)
+	f := find(rep, "public_host.mismatch")
+	if f == nil {
+		t.Fatal("expected public_host.mismatch")
+	}
+	if _, err := Apply(ws, rep, false); err != nil {
+		t.Fatal(err)
+	}
+	ws = reload(t, root)
+	if got, _ := ws.Species[0].Get("PUBLIC_HOST"); got != "localhost" {
+		t.Fatalf("PUBLIC_HOST = %q", got)
+	}
+}
+
+func TestPublicServerWithoutHostIsNotFixable(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["PUBLIC_SERVER"] = "not a url"
+	ws := discover(t, root, envs)
+
+	rep := Run(ws)
+	f := find(rep, "public_server.invalid")
+	if f == nil {
+		t.Fatal("expected public_server.invalid")
+	}
+	if f.Fix != FixNone {
+		t.Fatalf("fix = %v", f.Fix)
 	}
 }

@@ -276,6 +276,7 @@ func Run(w *workspace.Workspace) *Report {
 			continue
 		}
 		checkRequired(r, sp, spec.RequiredSpecies)
+		checkPublicHost(r, sp)
 		checkSpeciesProjectName(r, sp)
 		checkSpeciesComposeOverlay(r, sp)
 		checkESIndexPrefix(r, sp)

@@ -42,6 +42,7 @@ EMOBASE_INFRA_NETWORK=emobase-infra
 
 const tcasEnv = `MAIN_SPECIES=Tcas
 PUBLIC_SERVER=https://tcas.example.org
+PUBLIC_HOST=tcas.example.org
 HTTP_PORT=9090
 PORTAL_SERVER=https://portal.example.org
 PORTAL_INTERNAL_URL=http://portal:3000
