@@ -203,18 +203,18 @@ func previewCases() []previewCase {
 
 		{Name: "doctor-clean", Group: "doctor", Description: "consistent configuration", Render: func() string {
 			ws := healthyWorkspace()
-			return renderDoctor(previewReport(ws), nil, false, false)
+			return renderDoctor(previewReport(ws), nil, false, false, false)
 		}},
 		{Name: "doctor-findings", Group: "doctor", Description: "safe, warning and missing-key findings", Render: func() string {
 			ws := findingsWorkspace()
-			return renderDoctor(previewReport(ws), nil, false, false)
+			return renderDoctor(previewReport(ws), nil, false, false, false)
 		}},
 		{Name: "doctor-conflicts", Group: "doctor", Description: "choose and destructive findings", Render: func() string {
 			ws := conflictWorkspace()
-			return renderDoctor(previewReport(ws), nil, false, false)
+			return renderDoctor(previewReport(ws), nil, false, false, false)
 		}},
 		{Name: "doctor-notices", Group: "doctor", Description: "informational findings only", Render: func() string {
-			return renderDoctor(noticesReport(), nil, false, false)
+			return renderDoctor(noticesReport(), nil, false, false, false)
 		}},
 		{Name: "doctor-fix-applied", Group: "doctor", Description: "applied fixes with masked secrets", Render: func() string {
 			ws := healthyWorkspace()
@@ -224,7 +224,7 @@ func previewCases() []previewCase {
 				{Scope: "species:emobase-deploy-tcas", Key: "DIRECTUS_SECRET", Old: "", New: "new-secret", Secret: true},
 				{Scope: "portal", Key: "MYSQL_ROOT_PASSWORD", Old: "wrong-secret", New: "root-secret", Secret: true},
 			}
-			return renderDoctor(previewReport(ws), applied, true, true)
+			return renderDoctor(previewReport(ws), applied, true, true, false)
 		}},
 
 		{Name: "credential-list", Group: "credential", Description: "admin login plus two realms sharing one", Render: func() string {

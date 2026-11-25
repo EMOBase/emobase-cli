@@ -64,9 +64,11 @@ func stackOverview(ws *workspace.Workspace) string {
 	return ui.Table([]string{"role", "checkout", "url", "realm", "database", "port", "env"}, rows)
 }
 
-func printSummary(out io.Writer, rep *checks.Report) {
+func printSummary(out io.Writer, rep *checks.Report, live bool) {
 	e, w, i := rep.Counts()
 	switch {
+	case e == 0 && w == 0 && live:
+		fmt.Fprintf(out, "%s configuration and live checks passed\n", ui.OK("OK"))
 	case e == 0 && w == 0:
 		fmt.Fprintf(out, "%s configuration is consistent\n", ui.OK("OK"))
 	default:

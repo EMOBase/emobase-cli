@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/EMOBase/emobase-cli/internal/checks"
 )
 
 func TestKeycloakProbeHint(t *testing.T) {
@@ -47,5 +49,16 @@ func TestKeycloakProbeHint(t *testing.T) {
 				t.Fatalf("hint = %q, want %q", hint, tc.hint)
 			}
 		})
+	}
+}
+
+func TestDoctorSummaryMentionsLiveChecks(t *testing.T) {
+	static := renderDoctor(&checks.Report{}, nil, false, false, false)
+	if !strings.Contains(static, "configuration is consistent") {
+		t.Fatalf("static summary = %q", static)
+	}
+	live := renderDoctor(&checks.Report{}, nil, false, false, true)
+	if !strings.Contains(live, "configuration and live checks passed") {
+		t.Fatalf("live summary = %q", live)
 	}
 }

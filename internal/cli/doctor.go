@@ -57,7 +57,7 @@ are never applied automatically.`,
 				return nil
 			}
 
-			fmt.Fprint(out, renderDoctor(rep, applied, fix, a.Yes))
+			fmt.Fprint(out, renderDoctor(rep, applied, fix, a.Yes, withLive))
 			if rep.HasErrors() {
 				return ErrFindings
 			}

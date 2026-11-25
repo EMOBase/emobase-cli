@@ -21,7 +21,7 @@ func renderDashboard(ws *workspace.Workspace, rep *checks.Report) string {
 	fmt.Fprintln(&b)
 	fmt.Fprint(&b, stackOverview(ws))
 	fmt.Fprintln(&b)
-	printSummary(&b, rep)
+	printSummary(&b, rep, false)
 	if len(rep.Findings) > 0 {
 		fmt.Fprintln(&b)
 		fmt.Fprintln(&b, title("Findings"))
@@ -55,14 +55,14 @@ func nextDashboardStep(rep *checks.Report) string {
 	}
 }
 
-func renderDoctor(rep *checks.Report, applied []checks.Change, withFix, yes bool) string {
+func renderDoctor(rep *checks.Report, applied []checks.Change, withFix, yes, live bool) string {
 	var b strings.Builder
 	if withFix {
 		fmt.Fprintln(&b, title("Applied fixes"))
 		ui.Changes(&b, applied)
 		fmt.Fprintln(&b)
 	}
-	printSummary(&b, rep)
+	printSummary(&b, rep, live)
 	if len(rep.Findings) > 0 {
 		fmt.Fprintln(&b)
 		printFindings(&b, rep)
