@@ -121,6 +121,9 @@ func ResolveRoot(flag string) (string, error) {
 	return cwd, nil
 }
 
+// ComposePath returns the primary Compose file in dir, if one exists.
+func ComposePath(dir string) (string, bool) { return composeFile(dir) }
+
 func composeFile(dir string) (string, bool) {
 	for _, name := range []string{"compose.yml", "compose.yaml", "docker-compose.yml", "docker-compose.yaml"} {
 		p := filepath.Join(dir, name)

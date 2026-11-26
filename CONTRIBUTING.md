@@ -21,8 +21,8 @@ make preview-all                     # render every case
 ```
 
 Flags: `--no-color`, `--all`, `--help`. Cases cover the dashboard, doctor,
-species list and runtime status, including empty, warning, conflict and
-Docker-unavailable states.
+container image list/set/reset states, species list and runtime status,
+including empty, warning, conflict and Docker-unavailable states.
 
 ### Layout
 

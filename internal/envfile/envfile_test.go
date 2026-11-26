@@ -100,6 +100,22 @@ func TestSetQuotesValuesThatNeedIt(t *testing.T) {
 	}
 }
 
+func TestUnsetRemovesEveryDefinition(t *testing.T) {
+	f, err := Load(writeTemp(t, "# header\nA=1\nB=2\nA=3\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.Unset("A") {
+		t.Fatal("Unset reported no change")
+	}
+	if got := f.Render(); got != "# header\nB=2\n" {
+		t.Fatalf("Render =\n%s", got)
+	}
+	if f.Unset("A") {
+		t.Fatal("removing an absent key should be a no-op")
+	}
+}
+
 func TestLoadOrEmptyCreatesEditableFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), ".env")
 	f, err := LoadOrEmpty(path)

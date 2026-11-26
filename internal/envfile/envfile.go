@@ -164,6 +164,25 @@ func (f *File) Set(key, value string) bool {
 	return true
 }
 
+// Unset removes every definition of key. It reports whether the file changed.
+func (f *File) Unset(key string) bool {
+	changed := false
+	kept := f.entries[:0]
+	for _, e := range f.entries {
+		if e.kv && e.key == key {
+			changed = true
+			continue
+		}
+		kept = append(kept, e)
+	}
+	if !changed {
+		return false
+	}
+	f.entries = kept
+	f.dirty = true
+	return true
+}
+
 // Dirty reports whether Save would write anything.
 func (f *File) Dirty() bool { return f.dirty }
 

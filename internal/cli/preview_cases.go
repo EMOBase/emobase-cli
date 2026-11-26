@@ -186,6 +186,39 @@ func statusDockerDown() statusReport {
 	}
 }
 
+func previewImageRows(overrides, all bool) []imageRow {
+	rows := []imageRow{
+		{Target: "genomics", Variable: "EMOBASE_GENOMICS_IMAGE", Image: "ghcr.io/emobase/emobase-genomics:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
+		{Target: "portal-web", Variable: "EMOBASE_PORTAL_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-portal-web:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
+		{Target: "web", Variable: "EMOBASE_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+	}
+	if overrides {
+		rows[0].Image = "emobase-genomics:local"
+		rows[0].Source = imageSourceEnv
+		rows[0].Default = "ghcr.io/emobase/emobase-genomics:main"
+		rows[2].Image = "emobase-web:local"
+		rows[2].Source = imageSourceEnv
+		rows[2].Default = "ghcr.io/emobase/emobase-web:dev"
+	}
+	if !all {
+		return rows
+	}
+	services := []imageRow{
+		{Target: "ontologyservice", Variable: "ONTOLOGYSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "imageservice", Variable: "IMAGESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-imageservice:v1.6.2", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "phenotypeservice", Variable: "PHENOTYPESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-phenotypeservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "goannotationservice", Variable: "GOANNOTATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-goannotationservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "publicationservice", Variable: "PUBLICATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-publicationservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "oba", Variable: "OBA_IMAGE", Image: "openjdk:7", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+	}
+	if overrides {
+		services[0].Image = "ghcr.io/emobase/ibb-ontologyservice:test"
+		services[0].Source = imageSourceEnv
+		services[0].Default = "ghcr.io/emobase/ibb-ontologyservice:v1.6.2"
+	}
+	return append(rows, services...)
+}
+
 func previewCases() []previewCase {
 	return []previewCase{
 		{Name: "dashboard-healthy", Group: "dashboard", Description: "3 stacks, no findings", Render: func() string {
@@ -259,6 +292,46 @@ func previewCases() []previewCase {
 		}},
 		{Name: "species-empty", Group: "species", Description: "no species found", Render: func() string {
 			return renderSpecies(nil)
+		}},
+
+		{Name: "image-mixed", Group: "image", Description: "local overrides plus Compose defaults", Render: func() string {
+			return renderImages(previewImageRows(true, false))
+		}},
+		{Name: "image-defaults", Group: "image", Description: "every stack on its Compose default", Render: func() string {
+			return renderImages(previewImageRows(false, false))
+		}},
+		{Name: "image-all", Group: "image", Description: "supporting service images included", Render: func() string {
+			return renderImages(previewImageRows(true, true))
+		}},
+		{Name: "image-empty", Group: "image", Description: "no portal or species checkouts", Render: func() string {
+			return renderImages(nil)
+		}},
+		{Name: "image-set", Group: "image", Description: "pin the portal genomics image", Render: func() string {
+			t, _ := findImageTarget("genomics")
+			return renderImageChanges(t, []imageChange{
+				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
+					New: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main"},
+			})
+		}},
+		{Name: "image-set-species", Group: "image", Description: "pin one image across several species", Render: func() string {
+			t, _ := findImageTarget("web")
+			return renderImageChanges(t, []imageChange{
+				{Target: "web", Checkout: "emobase-deploy-dmel", Variable: "EMOBASE_WEB_IMAGE",
+					New: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev"},
+				{Target: "web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
+					New: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev"},
+			})
+		}},
+		{Name: "image-reset", Group: "image", Description: "remove an override and show the Compose default", Render: func() string {
+			t, _ := findImageTarget("genomics")
+			return renderImageChanges(t, []imageChange{
+				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
+					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main", Reset: true},
+			})
+		}},
+		{Name: "image-nochange", Group: "image", Description: "set or reset made no edit", Render: func() string {
+			t, _ := findImageTarget("publicationservice")
+			return renderImageChanges(t, nil)
 		}},
 
 		{Name: "status-running", Group: "status", Description: "all stacks healthy", Render: func() string {

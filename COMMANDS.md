@@ -12,6 +12,7 @@ the first run, see [README.md](README.md).
 | `emobase status` | Live containers, Docker network, MySQL databases, realms and HTTP status |
 | `emobase credential show [stack]` | Seed users per realm plus the Keycloak admin; passwords only when a stack is named |
 | `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
+| `emobase image [list\|set\|reset]` | View or change the portal and species container images |
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add [code]` | Same as `emobase create species` |
 | `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
@@ -148,13 +149,64 @@ The command does not configure DNS, TLS, or the reverse proxy, and it refuses
 to apply changes while Keycloak is down. Old realm origins are left in place;
 remove them in the Keycloak admin console if the cutover is permanent.
 
+## Changing container images
+
+The portal and every species stack select their application image from that
+stack's `.env`:
+
+| Target | Variable | Stack |
+| --- | --- | --- |
+| `genomics` | `EMOBASE_GENOMICS_IMAGE` | portal |
+| `portal-web` | `EMOBASE_PORTAL_WEB_IMAGE` | portal |
+| `web` | `EMOBASE_WEB_IMAGE` | every species, or one with `--only` |
+| `ontologyservice` | `ONTOLOGYSERVICE_IMAGE` | every species, or one with `--only` |
+| `imageservice` | `IMAGESERVICE_IMAGE` | every species, or one with `--only` |
+| `phenotypeservice` | `PHENOTYPESERVICE_IMAGE` | every species, or one with `--only` |
+| `goannotationservice` | `GOANNOTATIONSERVICE_IMAGE` | every species, or one with `--only` |
+| `publicationservice` | `PUBLICATIONSERVICE_IMAGE` | every species, or one with `--only` |
+| `oba` | `OBA_IMAGE` | Tcas-overlay species, or one with `--only` |
+
+The full repository names (`emobase-genomics`, `emobase-portal-web`,
+`emobase-web`) are accepted as target aliases. `oba` is only available when the
+stack's `COMPOSE_FILE` includes `compose.tcas.yml`.
+
+By default `emobase image` lists the main app images plus any supporting service
+image that has an explicit override. `--all` also lists the supporting services
+that still use their defaults. The `default` column is the `${VAR:-default}`
+fallback declared in the Compose file that defines the image, so an unset
+variable still has a predictable image. An empty value in `.env` is treated the
+same as unset, matching Compose.
+
+```sh
+emobase image                                      # same as emobase image list
+emobase image --all                                # include unchanged services
+emobase image set genomics ghcr.io/emobase/emobase-genomics:v0.6.0
+emobase image set web emobase-web:local            # every species stack
+emobase image set web emobase-web:local --only Tcas
+emobase image set ontologyservice ghcr.io/emobase/ibb-ontologyservice:test
+emobase image set oba azul/zulu-openjdk:7 --only Tcas
+emobase image reset genomics                       # back to the Compose default
+emobase image reset web --only Tcas
+```
+
+`set` updates the key in place, or appends it when absent. `reset` removes it.
+Both preserve comments and ordering and keep a `.env.bak` copy. Neither
+recreates containers: run `emobase up --only portal` (or the affected checkout
+or `--only species`) to apply the change.
+
+Supporting service targets are the overridable images in
+`emobase-deploy/compose.yml` plus the Tcas overlay. Other images, such as
+`nginx`, `directus`, `querypipelineservice`, MySQL, Keycloak and Elasticsearch,
+are fixed in their Compose files and are not managed by this command.
+
 ## JSON output
 
-`--json` works with the dashboard, `doctor`, `status` and `species list`.
-Examples:
+`--json` works with the dashboard, `doctor`, `status`, `image` and
+`species list`. Examples:
 
 ```sh
 emobase doctor --json | jq '.findings[] | select(.severity == "error")'
+emobase image --json | jq -r '.[] | "\(.target)\t\(.image)\t\(.source)"'
 emobase species list --json | jq -r '.[] | "\(.species)\t\(.url)"'
 ```
 
