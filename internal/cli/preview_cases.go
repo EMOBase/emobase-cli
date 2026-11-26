@@ -213,7 +213,14 @@ func previewImageRows(overrides, all bool) []imageRow {
 		services[0].Image = "ghcr.io/emobase/ibb-ontologyservice:test"
 		services[0].Source = imageSourceEnv
 	}
-	return append(rows, services...)
+	rows = append(rows, services...)
+	// Illustrate the "-" state: an image override with no Compose fallback.
+	rows = append(rows, imageRow{
+		Target: "custom-service", Variable: "CUSTOM_SERVICE_IMAGE",
+		Image: "registry.example/custom-service:local", Source: imageSourceEnv,
+		Role: "species", Checkout: "emobase-deploy-tcas",
+	})
+	return rows
 }
 
 func previewCases() []previewCase {
@@ -297,7 +304,7 @@ func previewCases() []previewCase {
 		{Name: "image-defaults", Group: "image", Description: "every stack on its Compose default", Render: func() string {
 			return renderImages(previewImageRows(false, false))
 		}},
-		{Name: "image-all", Group: "image", Description: "supporting service images included", Render: func() string {
+		{Name: "image-all", Group: "image", Description: "supporting services plus a no-fallback row", Render: func() string {
 			return renderImages(previewImageRows(true, true))
 		}},
 		{Name: "image-empty", Group: "image", Description: "no portal or species checkouts", Render: func() string {
@@ -307,7 +314,7 @@ func previewCases() []previewCase {
 			t, _ := findImageTarget("genomics")
 			return renderImageChanges(t, []imageChange{
 				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
-					New: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main"},
+					New: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:dev"},
 			})
 		}},
 		{Name: "image-set-species", Group: "image", Description: "pin one image across several species", Render: func() string {
@@ -323,22 +330,34 @@ func previewCases() []previewCase {
 			t, _ := findImageTarget("genomics")
 			return renderImageChanges(t, []imageChange{
 				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
-					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main", Reset: true},
+					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:dev", Reset: true},
 			})
 		}},
 		{Name: "image-reset-all", Group: "image", Description: "clear portal and species overrides together", Render: func() string {
 			return renderImageChanges(imageTarget{}, []imageChange{
 				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
-					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main", Reset: true},
+					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:dev", Reset: true},
 				{Target: "species-web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
 					Old: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev", Reset: true},
 				{Target: "ontologyservice", Checkout: "emobase-deploy-tcas", Variable: "ONTOLOGYSERVICE_IMAGE",
 					Old: "ghcr.io/emobase/ibb-ontologyservice:test", Default: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Reset: true},
 			})
 		}},
+		{Name: "image-reset-all-skip", Group: "image", Description: "reset all except an image without a fallback", Render: func() string {
+			return renderImageChanges(imageTarget{}, []imageChange{
+				{Target: "portal-web", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_PORTAL_WEB_IMAGE",
+					Old: "ghcr.io/emobase/emobase-portal-web:test", Default: "ghcr.io/emobase/emobase-portal-web:main", Reset: true},
+				{Target: "species-web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
+					Old: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev", Reset: true},
+			}, "left genomics unchanged in emobase-portal-deploy: EMOBASE_GENOMICS_IMAGE has no Compose fallback")
+		}},
 		{Name: "image-nochange", Group: "image", Description: "set or reset made no edit", Render: func() string {
 			t, _ := findImageTarget("publicationservice")
 			return renderImageChanges(t, nil)
+		}},
+		{Name: "image-reset-no-fallback", Group: "image", Description: "reset refused because Compose has no fallback", Render: func() string {
+			t, _ := findImageTarget("genomics")
+			return "Error: " + imageNoFallbackError(t.Name, t.Variable, "emobase-portal-deploy").Error() + "\n"
 		}},
 
 		{Name: "status-running", Group: "status", Description: "all stacks healthy", Render: func() string {

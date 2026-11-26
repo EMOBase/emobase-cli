@@ -155,6 +155,7 @@ func TestImageListTextShowsDefaults(t *testing.T) {
 	}
 	for _, want := range []string{
 		"Container images",
+		"default (yes/no/-): yes = matches Compose fallback; no = .env override; - = no Compose fallback",
 		"emobase-genomics:local",
 		"ghcr.io/emobase/emobase-portal-web:main",
 		"emobase image set",
@@ -417,6 +418,62 @@ func TestImageResetAllRemovesEveryOverride(t *testing.T) {
 	}
 	if !strings.Contains(out, "No image changes.") {
 		t.Fatalf("second reset output:\n%s", out)
+	}
+}
+
+func imageNoFallbackFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	mkCLIStack(t, root, "emobase-portal-deploy", `services:
+  genomicsservice:
+    image: ${EMOBASE_GENOMICS_IMAGE}
+  fe:
+    image: ${EMOBASE_PORTAL_WEB_IMAGE:-ghcr.io/emobase/emobase-portal-web:main}
+`, "EMOBASE_GENOMICS_IMAGE=emobase-genomics:local\nEMOBASE_PORTAL_WEB_IMAGE=ghcr.io/emobase/emobase-portal-web:main\n")
+	return root
+}
+
+func TestImageResetRefusesWhenComposeHasNoFallback(t *testing.T) {
+	root := imageNoFallbackFixture(t)
+	_, _, err := runImageCLI(t, "--workspace", root, "image", "reset", "genomics")
+	if err == nil || !strings.Contains(err.Error(), "no Compose fallback") {
+		t.Fatalf("err = %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "emobase-portal-deploy", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "EMOBASE_GENOMICS_IMAGE=emobase-genomics:local\n") {
+		t.Fatalf(".env was modified before the preflight failed:\n%s", data)
+	}
+}
+
+func TestImageResetAllSkipsNoFallback(t *testing.T) {
+	root := imageNoFallbackFixture(t)
+	out, errb, err := runImageCLI(t, "--workspace", root, "image", "reset", "--all")
+	if err != nil {
+		t.Fatalf("err = %v, stderr = %s", err, errb)
+	}
+	if !strings.Contains(out, "left genomics unchanged") || !strings.Contains(out, "no Compose fallback") {
+		t.Fatalf("output does not explain the skipped image:\n%s", out)
+	}
+
+	data, err := os.ReadFile(filepath.Join(root, "emobase-portal-deploy", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "EMOBASE_GENOMICS_IMAGE=emobase-genomics:local\n") {
+		t.Fatalf("no-fallback image should be left untouched:\n%s", data)
+	}
+	if strings.Contains(string(data), "EMOBASE_PORTAL_WEB_IMAGE") {
+		t.Fatalf("fallback image should still be reset:\n%s", data)
+	}
+}
+
+func TestImageNewDisplayWithoutFallback(t *testing.T) {
+	if got := imageNewDisplay(imageChange{Reset: true}); got != "(unset; no Compose fallback)" {
+		t.Fatalf("imageNewDisplay = %q", got)
 	}
 }
 

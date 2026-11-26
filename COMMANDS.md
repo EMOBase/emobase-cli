@@ -193,7 +193,9 @@ emobase image reset --all                          # every managed override
 
 `set` updates the key in place, or appends it when absent. `reset` removes it;
 `reset --all` removes every managed image override in the workspace and saves
-each affected `.env` once. Both preserve comments and ordering and keep a
+each affected `.env` once. When the Compose file declares no fallback, a
+targeted reset refuses to remove the image; `reset --all` leaves that image
+unchanged and prints a warning. Both preserve comments and ordering and keep a
 `.env.bak` copy. `reset --all` cannot be combined with a target or `--only`.
 Neither recreates containers: run `emobase up --only portal` (or the affected
 checkout or `--only species`) to apply the change.

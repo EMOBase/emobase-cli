@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/EMOBase/emobase-cli/internal/checks"
 	"github.com/EMOBase/emobase-cli/internal/ui"
 	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
@@ -205,7 +206,7 @@ Examples:
 			if err != nil {
 				return err
 			}
-			return a.applyImageResetJobs(cmd, t.Name, []imageResetJob{{Target: t, Stacks: stacks}})
+			return a.applyImageResetJobs(cmd, t.Name, []imageResetJob{{Target: t, Stacks: stacks}}, false)
 		},
 	}
 	cmd.Flags().BoolVar(&all, "all", false, "remove every managed image override")
@@ -374,6 +375,7 @@ func renderImages(rows []imageRow) string {
 	}
 	fmt.Fprintln(&b, title("Container images"))
 	fmt.Fprintln(&b, muted("  Effective image from each stack's .env, or the Compose default."))
+	fmt.Fprintln(&b, muted("  default (yes/no/-): yes = matches Compose fallback; no = .env override; - = no Compose fallback."))
 	fmt.Fprintln(&b)
 	var table [][]string
 	for _, r := range rows {
@@ -393,7 +395,6 @@ func renderImages(rows []imageRow) string {
 	}
 	fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "image", "default"}, table))
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("default: yes when the image equals the Compose fallback; - when there is no fallback."))
 	fmt.Fprintln(&b, muted("Pin an image: emobase image set <target> <image>"))
 	fmt.Fprintln(&b, muted("Include supporting service images: emobase image --all"))
 	fmt.Fprintln(&b, muted("Return to the Compose default: emobase image reset <target>"))
@@ -487,6 +488,20 @@ type imageResetJob struct {
 	Stacks []*workspace.Stack
 }
 
+type imageResetOp struct {
+	Target  imageTarget
+	Stack   *workspace.Stack
+	Old     string
+	Default string
+}
+
+func imageNoFallbackError(target, variable, checkout string) error {
+	return fmt.Errorf(
+		"cannot reset %s: %s has no Compose fallback in %s; set an explicit image instead",
+		target, variable, checkout,
+	)
+}
+
 func (a *App) applyImageResetAll(cmd *cobra.Command, ws *workspace.Workspace) error {
 	var jobs []imageResetJob
 	for _, t := range managedImages {
@@ -494,14 +509,14 @@ func (a *App) applyImageResetAll(cmd *cobra.Command, ws *workspace.Workspace) er
 			jobs = append(jobs, imageResetJob{Target: t, Stacks: stacks})
 		}
 	}
-	return a.applyImageResetJobs(cmd, "", jobs)
+	return a.applyImageResetJobs(cmd, "", jobs, true)
 }
 
-func (a *App) applyImageResetJobs(cmd *cobra.Command, label string, jobs []imageResetJob) error {
-	var changes []imageChange
-	var order []*workspace.Stack
-	dirty := map[*workspace.Stack]bool{}
-
+func (a *App) applyImageResetJobs(cmd *cobra.Command, label string, jobs []imageResetJob, skipNoFallback bool) error {
+	// Check everything before editing any file: removing the only image value
+	// would leave Compose with nothing to run.
+	var ops []imageResetOp
+	var warnings []string
 	for _, job := range jobs {
 		for _, st := range job.Stacks {
 			if st.MissingEnv {
@@ -511,18 +526,38 @@ func (a *App) applyImageResetJobs(cmd *cobra.Command, label string, jobs []image
 			if !ok {
 				continue
 			}
-			if !st.Env.Unset(job.Target.Variable) {
+			def := composeImageDefault(st, job.Target)
+			if def == "" {
+				if !skipNoFallback {
+					return imageNoFallbackError(job.Target.Name, job.Target.Variable, st.Name)
+				}
+				warnings = append(warnings, fmt.Sprintf(
+					"left %s unchanged in %s: %s has no Compose fallback",
+					job.Target.Name, st.Name, job.Target.Variable,
+				))
 				continue
 			}
-			if !dirty[st] {
-				dirty[st] = true
-				order = append(order, st)
-			}
-			changes = append(changes, imageChange{
-				Target: job.Target.Name, Checkout: st.Name, Variable: job.Target.Variable,
-				Old: old, Default: composeImageDefault(st, job.Target), Reset: true,
+			ops = append(ops, imageResetOp{
+				Target: job.Target, Stack: st, Old: old, Default: def,
 			})
 		}
+	}
+
+	var changes []imageChange
+	var order []*workspace.Stack
+	dirty := map[*workspace.Stack]bool{}
+	for _, op := range ops {
+		if !op.Stack.Env.Unset(op.Target.Variable) {
+			continue
+		}
+		if !dirty[op.Stack] {
+			dirty[op.Stack] = true
+			order = append(order, op.Stack)
+		}
+		changes = append(changes, imageChange{
+			Target: op.Target.Name, Checkout: op.Stack.Name, Variable: op.Target.Variable,
+			Old: op.Old, Default: op.Default, Reset: true,
+		})
 	}
 
 	for _, st := range order {
@@ -530,11 +565,14 @@ func (a *App) applyImageResetJobs(cmd *cobra.Command, label string, jobs []image
 			return fmt.Errorf("save %s: %w", st.EnvPath, err)
 		}
 	}
-	return a.printImageChanges(cmd, imageTarget{Name: label}, changes)
+	return a.printImageChanges(cmd, imageTarget{Name: label}, changes, warnings...)
 }
 
-func (a *App) printImageChanges(cmd *cobra.Command, t imageTarget, changes []imageChange) error {
+func (a *App) printImageChanges(cmd *cobra.Command, t imageTarget, changes []imageChange, warnings ...string) error {
 	if a.JSON {
+		for _, w := range warnings {
+			fmt.Fprintln(cmd.ErrOrStderr(), "warning: "+w)
+		}
 		if changes == nil {
 			changes = []imageChange{}
 		}
@@ -543,30 +581,36 @@ func (a *App) printImageChanges(cmd *cobra.Command, t imageTarget, changes []ima
 		return enc.Encode(changes)
 	}
 
-	fmt.Fprint(cmd.OutOrStdout(), renderImageChanges(t, changes))
+	fmt.Fprint(cmd.OutOrStdout(), renderImageChanges(t, changes, warnings...))
 	return nil
 }
 
-func renderImageChanges(t imageTarget, changes []imageChange) string {
+func renderImageChanges(t imageTarget, changes []imageChange, warnings ...string) string {
 	var b strings.Builder
-	if len(changes) == 0 {
-		if t.Name == "" {
-			fmt.Fprintln(&b, "No image changes.")
-		} else {
-			fmt.Fprintf(&b, "No image changes for %s.\n", t.Name)
+	switch {
+	case len(changes) == 0 && t.Name == "":
+		fmt.Fprintln(&b, "No image changes.")
+	case len(changes) == 0:
+		fmt.Fprintf(&b, "No image changes for %s.\n", t.Name)
+	default:
+		fmt.Fprintln(&b, title("Image changes"))
+		var rows [][]string
+		for _, ch := range changes {
+			rows = append(rows, []string{
+				ch.Target, ch.Checkout, ch.Variable, imageOldDisplay(ch), imageNewDisplay(ch),
+			})
 		}
-		return b.String()
+		fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "old", "new"}, rows))
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, muted("Restart the affected stacks to apply: "+imageRestartHint(changes)))
 	}
-	fmt.Fprintln(&b, title("Image changes"))
-	var rows [][]string
-	for _, ch := range changes {
-		rows = append(rows, []string{
-			ch.Target, ch.Checkout, ch.Variable, imageOldDisplay(ch), imageNewDisplay(ch),
-		})
+	if len(warnings) > 0 {
+		fmt.Fprintln(&b)
+		fmt.Fprintln(&b, title("Warnings"))
+		for _, w := range warnings {
+			fmt.Fprintf(&b, "  %s %s\n", ui.Severity(checks.Warn), w)
+		}
 	}
-	fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "old", "new"}, rows))
-	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("Restart the affected stacks to apply: "+imageRestartHint(changes)))
 	return b.String()
 }
 
@@ -587,7 +631,7 @@ func imageNewDisplay(ch imageChange) string {
 	if ch.Default != "" {
 		return "(default: " + ch.Default + ")"
 	}
-	return "(Compose default)"
+	return "(unset; no Compose fallback)"
 }
 
 func imageRestartHint(changes []imageChange) string {
