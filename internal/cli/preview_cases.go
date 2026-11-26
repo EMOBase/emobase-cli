@@ -188,33 +188,30 @@ func statusDockerDown() statusReport {
 
 func previewImageRows(overrides, all bool) []imageRow {
 	rows := []imageRow{
-		{Target: "genomics", Variable: "EMOBASE_GENOMICS_IMAGE", Image: "ghcr.io/emobase/emobase-genomics:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
-		{Target: "portal-web", Variable: "EMOBASE_PORTAL_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-portal-web:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
-		{Target: "species-web", Variable: "EMOBASE_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "genomics", Variable: "EMOBASE_GENOMICS_IMAGE", Image: "ghcr.io/emobase/emobase-genomics:dev", Source: imageSourceDefault, Default: "ghcr.io/emobase/emobase-genomics:dev", Role: "portal", Checkout: "emobase-portal-deploy"},
+		{Target: "portal-web", Variable: "EMOBASE_PORTAL_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-portal-web:main", Source: imageSourceDefault, Default: "ghcr.io/emobase/emobase-portal-web:main", Role: "portal", Checkout: "emobase-portal-deploy"},
+		{Target: "species-web", Variable: "EMOBASE_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceDefault, Default: "ghcr.io/emobase/emobase-web:dev", Role: "species", Checkout: "emobase-deploy-tcas"},
 	}
 	if overrides {
 		rows[0].Image = "emobase-genomics:local"
 		rows[0].Source = imageSourceEnv
-		rows[0].Default = "ghcr.io/emobase/emobase-genomics:main"
 		rows[2].Image = "emobase-web:local"
 		rows[2].Source = imageSourceEnv
-		rows[2].Default = "ghcr.io/emobase/emobase-web:dev"
 	}
 	if !all {
 		return rows
 	}
 	services := []imageRow{
-		{Target: "ontologyservice", Variable: "ONTOLOGYSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
-		{Target: "imageservice", Variable: "IMAGESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-imageservice:v1.6.2", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
-		{Target: "phenotypeservice", Variable: "PHENOTYPESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-phenotypeservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
-		{Target: "goannotationservice", Variable: "GOANNOTATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-goannotationservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
-		{Target: "publicationservice", Variable: "PUBLICATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-publicationservice:v1.6.1", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
-		{Target: "oba", Variable: "OBA_IMAGE", Image: "openjdk:7", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "ontologyservice", Variable: "ONTOLOGYSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Source: imageSourceDefault, Default: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "imageservice", Variable: "IMAGESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-imageservice:v1.6.2", Source: imageSourceDefault, Default: "ghcr.io/emobase/ibb-imageservice:v1.6.2", Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "phenotypeservice", Variable: "PHENOTYPESERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-phenotypeservice:v1.6.1", Source: imageSourceDefault, Default: "ghcr.io/emobase/ibb-phenotypeservice:v1.6.1", Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "goannotationservice", Variable: "GOANNOTATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-goannotationservice:v1.6.1", Source: imageSourceDefault, Default: "ghcr.io/emobase/ibb-goannotationservice:v1.6.1", Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "publicationservice", Variable: "PUBLICATIONSERVICE_IMAGE", Image: "ghcr.io/emobase/ibb-publicationservice:v1.6.1", Source: imageSourceDefault, Default: "ghcr.io/emobase/ibb-publicationservice:v1.6.1", Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "oba", Variable: "OBA_IMAGE", Image: "jboss/base-jdk:7", Source: imageSourceDefault, Default: "jboss/base-jdk:7", Role: "species", Checkout: "emobase-deploy-tcas"},
 	}
 	if overrides {
 		services[0].Image = "ghcr.io/emobase/ibb-ontologyservice:test"
 		services[0].Source = imageSourceEnv
-		services[0].Default = "ghcr.io/emobase/ibb-ontologyservice:v1.6.2"
 	}
 	return append(rows, services...)
 }

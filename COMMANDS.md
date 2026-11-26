@@ -173,10 +173,10 @@ The full repository names (`emobase-genomics`, `emobase-portal-web`,
 
 By default `emobase image` lists the main app images plus any supporting service
 image that has an explicit override. `--all` also lists the supporting services
-that still use their defaults. The `default` column is the `${VAR:-default}`
-fallback declared in the Compose file that defines the image, so an unset
-variable still has a predictable image. An empty value in `.env` is treated the
-same as unset, matching Compose.
+that still use their defaults. The `default` column is `yes` when the effective
+image equals the `${VAR:-default}` fallback declared in the Compose file, and
+`no` when `.env` overrides it. It is `-` when Compose declares no fallback. An
+empty value in `.env` is treated the same as unset, matching Compose.
 
 ```sh
 emobase image                                      # same as emobase image list

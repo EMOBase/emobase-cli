@@ -382,13 +382,18 @@ func renderImages(rows []imageRow) string {
 			image = "-"
 		}
 		def := "-"
-		if r.Source == imageSourceEnv && r.Default != "" && r.Default != r.Image {
-			def = r.Default
+		if r.Default != "" {
+			if r.Image == r.Default {
+				def = "yes"
+			} else {
+				def = "no"
+			}
 		}
-		table = append(table, []string{r.Target, r.Checkout, r.Variable, image, r.Source, def})
+		table = append(table, []string{r.Target, r.Checkout, r.Variable, image, def})
 	}
-	fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "image", "source", "default"}, table))
+	fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "image", "default"}, table))
 	fmt.Fprintln(&b)
+	fmt.Fprintln(&b, muted("default: yes when the image equals the Compose fallback; - when there is no fallback."))
 	fmt.Fprintln(&b, muted("Pin an image: emobase image set <target> <image>"))
 	fmt.Fprintln(&b, muted("Include supporting service images: emobase image --all"))
 	fmt.Fprintln(&b, muted("Return to the Compose default: emobase image reset <target>"))

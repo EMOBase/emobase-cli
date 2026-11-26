@@ -165,6 +165,46 @@ func TestImageListTextShowsDefaults(t *testing.T) {
 	}
 }
 
+func TestImageListShowsDefaultFlag(t *testing.T) {
+	out := renderImages([]imageRow{
+		{
+			Target: "species-web", Checkout: "Tcas", Variable: "EMOBASE_WEB_IMAGE",
+			Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceEnv,
+			Default: "ghcr.io/emobase/emobase-web:dev", Role: "species",
+		},
+		{
+			Target: "genomics", Checkout: "portal", Variable: "EMOBASE_GENOMICS_IMAGE",
+			Image: "emobase-genomics:local", Source: imageSourceEnv,
+			Default: "ghcr.io/emobase/emobase-genomics:dev", Role: "portal",
+		},
+		{
+			Target: "no-fallback", Checkout: "portal", Variable: "CUSTOM_IMAGE",
+			Image: "custom:local", Source: imageSourceEnv, Role: "portal",
+		},
+	})
+	if got := strings.Count(out, "ghcr.io/emobase/emobase-web:dev"); got != 1 {
+		t.Fatalf("matching default should not be repeated, got %d occurrences:\n%s", got, out)
+	}
+	if line := imageTableLine(out, "species-web"); !strings.HasSuffix(strings.TrimSpace(line), "yes") {
+		t.Fatalf("species-web should be marked default:\n%s", out)
+	}
+	if line := imageTableLine(out, "genomics"); !strings.HasSuffix(strings.TrimSpace(line), "no") {
+		t.Fatalf("genomics override should not be marked default:\n%s", out)
+	}
+	if line := imageTableLine(out, "no-fallback"); !strings.HasSuffix(strings.TrimSpace(line), "-") {
+		t.Fatalf("missing fallback should be shown with a dash:\n%s", out)
+	}
+}
+
+func imageTableLine(out, target string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, target+" ") {
+			return line
+		}
+	}
+	return ""
+}
+
 func TestImageSetOnlyUpdatesSelectedSpecies(t *testing.T) {
 	root, _ := imageFixture(t)
 	_, errb, err := runImageCLI(t, "--workspace", root, "image", "set", "species-web", "emobase-web:local", "--only", "Tcas")
