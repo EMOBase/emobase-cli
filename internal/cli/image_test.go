@@ -332,6 +332,77 @@ func TestImageResetServiceTarget(t *testing.T) {
 	}
 }
 
+func TestImageResetAllRemovesEveryOverride(t *testing.T) {
+	root, _ := imageFixture(t)
+	for _, args := range [][]string{
+		{"image", "set", "ontologyservice", "ghcr.io/emobase/ibb-ontologyservice:test", "--only", "Tcas"},
+		{"image", "set", "oba", "azul/zulu-openjdk:7", "--only", "Tcas"},
+	} {
+		if _, errb, err := runImageCLI(t, append([]string{"--workspace", root}, args...)...); err != nil {
+			t.Fatalf("setup %v: %v, stderr = %s", args, err, errb)
+		}
+	}
+
+	out, errb, err := runImageCLI(t, "--workspace", root, "image", "reset", "--all")
+	if err != nil {
+		t.Fatalf("err = %v, stderr = %s", err, errb)
+	}
+	if !strings.Contains(out, "Restart the affected stacks to apply: emobase up\n") {
+		t.Fatalf("mixed portal/species reset should suggest emobase up:\n%s", out)
+	}
+
+	portal, err := os.ReadFile(filepath.Join(root, "emobase-portal-deploy", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(portal), "EMOBASE_GENOMICS_IMAGE") {
+		t.Fatalf("portal override was not removed:\n%s", portal)
+	}
+	tcas, err := os.ReadFile(filepath.Join(root, "emobase-deploy-tcas", ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"EMOBASE_WEB_IMAGE", "ONTOLOGYSERVICE_IMAGE", "OBA_IMAGE"} {
+		if strings.Contains(string(tcas), key) {
+			t.Fatalf("%s was not removed:\n%s", key, tcas)
+		}
+	}
+	if !strings.Contains(string(tcas), "MAIN_SPECIES=Tcas\n") || !strings.Contains(string(tcas), "COMPOSE_FILE=compose.yml:compose.tcas.yml\n") {
+		t.Fatalf("reset lost unrelated settings:\n%s", tcas)
+	}
+
+	out, _, err = runImageCLI(t, "--workspace", root, "image", "reset", "--all")
+	if err != nil {
+		t.Fatalf("second reset: %v", err)
+	}
+	if !strings.Contains(out, "No image changes.") {
+		t.Fatalf("second reset output:\n%s", out)
+	}
+}
+
+func TestImageResetAllRejectsTargetAndOnly(t *testing.T) {
+	root, _ := imageFixture(t)
+	if _, _, err := runImageCLI(t, "--workspace", root, "image", "reset", "--all", "genomics"); err == nil || !strings.Contains(err.Error(), "cannot be used together") {
+		t.Fatalf("target with --all: err = %v", err)
+	}
+	if _, _, err := runImageCLI(t, "--workspace", root, "image", "reset", "--all", "--only", "Tcas"); err == nil || !strings.Contains(err.Error(), "cannot be used together") {
+		t.Fatalf("--only with --all: err = %v", err)
+	}
+}
+
+func TestImageResetRequiresTargetOrAll(t *testing.T) {
+	root, _ := imageFixture(t)
+	_, _, err := runImageCLI(t, "--workspace", root, "image", "reset")
+	if err == nil {
+		t.Fatal("expected an error")
+	}
+	for _, want := range []string{"choose an image to reset", "Targets:", "emobase image reset genomics", "emobase image reset --all"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error missing %q:\n%s", want, err)
+		}
+	}
+}
+
 func TestImageOBARequiresTcasOverlay(t *testing.T) {
 	root, _ := imageFixture(t)
 	_, errb, err := runImageCLI(t, "--workspace", root, "image", "set", "oba", "azul/zulu-openjdk:7", "--only", "Tcas")

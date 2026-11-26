@@ -329,6 +329,16 @@ func previewCases() []previewCase {
 					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main", Reset: true},
 			})
 		}},
+		{Name: "image-reset-all", Group: "image", Description: "clear portal and species overrides together", Render: func() string {
+			return renderImageChanges(imageTarget{}, []imageChange{
+				{Target: "genomics", Checkout: "emobase-portal-deploy", Variable: "EMOBASE_GENOMICS_IMAGE",
+					Old: "emobase-genomics:local", Default: "ghcr.io/emobase/emobase-genomics:main", Reset: true},
+				{Target: "species-web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
+					Old: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev", Reset: true},
+				{Target: "ontologyservice", Checkout: "emobase-deploy-tcas", Variable: "ONTOLOGYSERVICE_IMAGE",
+					Old: "ghcr.io/emobase/ibb-ontologyservice:test", Default: "ghcr.io/emobase/ibb-ontologyservice:v1.6.2", Reset: true},
+			})
+		}},
 		{Name: "image-nochange", Group: "image", Description: "set or reset made no edit", Render: func() string {
 			t, _ := findImageTarget("publicationservice")
 			return renderImageChanges(t, nil)

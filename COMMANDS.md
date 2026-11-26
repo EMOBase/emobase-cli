@@ -188,12 +188,15 @@ emobase image set ontologyservice ghcr.io/emobase/ibb-ontologyservice:test
 emobase image set oba azul/zulu-openjdk:7 --only Tcas
 emobase image reset genomics                       # back to the Compose default
 emobase image reset species-web --only Tcas
+emobase image reset --all                          # every managed override
 ```
 
-`set` updates the key in place, or appends it when absent. `reset` removes it.
-Both preserve comments and ordering and keep a `.env.bak` copy. Neither
-recreates containers: run `emobase up --only portal` (or the affected checkout
-or `--only species`) to apply the change.
+`set` updates the key in place, or appends it when absent. `reset` removes it;
+`reset --all` removes every managed image override in the workspace and saves
+each affected `.env` once. Both preserve comments and ordering and keep a
+`.env.bak` copy. `reset --all` cannot be combined with a target or `--only`.
+Neither recreates containers: run `emobase up --only portal` (or the affected
+checkout or `--only species`) to apply the change.
 
 Supporting service targets are the overridable images in
 `emobase-deploy/compose.yml` plus the Tcas overlay. Other images, such as

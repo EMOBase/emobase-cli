@@ -162,17 +162,40 @@ names one. Use emobase image --all to see the supporting service targets.`,
 
 func (a *App) imageResetCmd() *cobra.Command {
 	var only string
+	var all bool
 	cmd := &cobra.Command{
 		Use:   "reset <target>",
 		Short: "Remove an image override and return to the Compose default",
 		Long: `reset removes the image variable from the selected stack's .env, so Compose
 uses the default declared in its own Compose file. Species targets apply to every
-species stack unless --only names one.`,
-		Args: cobra.ExactArgs(1),
+species stack unless --only names one.
+
+With --all, reset removes every managed image override in the workspace. Each
+affected .env is saved once, preserving comments and keeping one .env.bak copy.`,
+		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ws, err := a.Workspace()
 			if err != nil {
 				return err
+			}
+			if all {
+				if len(args) > 0 {
+					return fmt.Errorf("--all and a target cannot be used together")
+				}
+				if strings.TrimSpace(only) != "" {
+					return fmt.Errorf("--all and --only cannot be used together")
+				}
+				return a.applyImageResetAll(cmd, ws)
+			}
+			if len(args) == 0 {
+				return fmt.Errorf(`choose an image to reset, or use --all
+
+Targets: %s
+
+Examples:
+  emobase image reset genomics
+  emobase image reset species-web --only Tcas
+  emobase image reset --all`, imageTargetNames())
 			}
 			t, ok := findImageTarget(args[0])
 			if !ok {
@@ -182,9 +205,10 @@ species stack unless --only names one.`,
 			if err != nil {
 				return err
 			}
-			return a.applyImageReset(cmd, t, stacks)
+			return a.applyImageResetJobs(cmd, t.Name, []imageResetJob{{Target: t, Stacks: stacks}})
 		},
 	}
+	cmd.Flags().BoolVar(&all, "all", false, "remove every managed image override")
 	cmd.Flags().StringVar(&only, "only", "", "limit to one stack (a species/checkout name for species images)")
 	return cmd
 }
@@ -453,28 +477,55 @@ func (a *App) applyImageSet(cmd *cobra.Command, t imageTarget, stacks []*workspa
 	return a.printImageChanges(cmd, t, changes)
 }
 
-func (a *App) applyImageReset(cmd *cobra.Command, t imageTarget, stacks []*workspace.Stack) error {
+type imageResetJob struct {
+	Target imageTarget
+	Stacks []*workspace.Stack
+}
+
+func (a *App) applyImageResetAll(cmd *cobra.Command, ws *workspace.Workspace) error {
+	var jobs []imageResetJob
+	for _, t := range managedImages {
+		if stacks := imageStacks(ws, t); len(stacks) > 0 {
+			jobs = append(jobs, imageResetJob{Target: t, Stacks: stacks})
+		}
+	}
+	return a.applyImageResetJobs(cmd, "", jobs)
+}
+
+func (a *App) applyImageResetJobs(cmd *cobra.Command, label string, jobs []imageResetJob) error {
 	var changes []imageChange
-	for _, st := range stacks {
-		if st.MissingEnv {
-			return fmt.Errorf("%s has no .env; run emobase create or ./init.sh first", st.Dir)
+	var order []*workspace.Stack
+	dirty := map[*workspace.Stack]bool{}
+
+	for _, job := range jobs {
+		for _, st := range job.Stacks {
+			if st.MissingEnv {
+				continue
+			}
+			old, ok := st.Get(job.Target.Variable)
+			if !ok {
+				continue
+			}
+			if !st.Env.Unset(job.Target.Variable) {
+				continue
+			}
+			if !dirty[st] {
+				dirty[st] = true
+				order = append(order, st)
+			}
+			changes = append(changes, imageChange{
+				Target: job.Target.Name, Checkout: st.Name, Variable: job.Target.Variable,
+				Old: old, Default: composeImageDefault(st, job.Target), Reset: true,
+			})
 		}
-		old, ok := st.Get(t.Variable)
-		if !ok {
-			continue
-		}
-		if !st.Env.Unset(t.Variable) {
-			continue
-		}
+	}
+
+	for _, st := range order {
 		if err := st.Env.Save(); err != nil {
 			return fmt.Errorf("save %s: %w", st.EnvPath, err)
 		}
-		changes = append(changes, imageChange{
-			Target: t.Name, Checkout: st.Name, Variable: t.Variable,
-			Old: old, Default: composeImageDefault(st, t), Reset: true,
-		})
 	}
-	return a.printImageChanges(cmd, t, changes)
+	return a.printImageChanges(cmd, imageTarget{Name: label}, changes)
 }
 
 func (a *App) printImageChanges(cmd *cobra.Command, t imageTarget, changes []imageChange) error {
@@ -494,7 +545,11 @@ func (a *App) printImageChanges(cmd *cobra.Command, t imageTarget, changes []ima
 func renderImageChanges(t imageTarget, changes []imageChange) string {
 	var b strings.Builder
 	if len(changes) == 0 {
-		fmt.Fprintf(&b, "No image changes for %s.\n", t.Name)
+		if t.Name == "" {
+			fmt.Fprintln(&b, "No image changes.")
+		} else {
+			fmt.Fprintf(&b, "No image changes for %s.\n", t.Name)
+		}
 		return b.String()
 	}
 	fmt.Fprintln(&b, title("Image changes"))
@@ -506,7 +561,7 @@ func renderImageChanges(t imageTarget, changes []imageChange) string {
 	}
 	fmt.Fprint(&b, ui.Table([]string{"target", "checkout", "variable", "old", "new"}, rows))
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, muted("Restart the affected stacks to apply: "+imageRestartHint(t.Role, changes)))
+	fmt.Fprintln(&b, muted("Restart the affected stacks to apply: "+imageRestartHint(changes)))
 	return b.String()
 }
 
@@ -530,12 +585,26 @@ func imageNewDisplay(ch imageChange) string {
 	return "(Compose default)"
 }
 
-func imageRestartHint(role workspace.Role, changes []imageChange) string {
-	if role == workspace.RolePortal {
+func imageRestartHint(changes []imageChange) string {
+	portal, species := false, false
+	checkouts := map[string]bool{}
+	for _, ch := range changes {
+		t, ok := findImageTarget(ch.Target)
+		if ok && t.Role == workspace.RolePortal {
+			portal = true
+		} else {
+			species = true
+		}
+		checkouts[ch.Checkout] = true
+	}
+	switch {
+	case portal && species:
+		return "emobase up"
+	case portal:
 		return "emobase up --only portal"
-	}
-	if len(changes) == 1 {
+	case len(checkouts) == 1:
 		return "emobase up --only " + changes[0].Checkout
+	default:
+		return "emobase up --only species"
 	}
-	return "emobase up --only species"
 }
