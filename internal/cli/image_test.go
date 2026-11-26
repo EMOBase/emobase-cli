@@ -167,7 +167,7 @@ func TestImageListTextShowsDefaults(t *testing.T) {
 
 func TestImageSetOnlyUpdatesSelectedSpecies(t *testing.T) {
 	root, _ := imageFixture(t)
-	_, errb, err := runImageCLI(t, "--workspace", root, "image", "set", "web", "emobase-web:local", "--only", "Tcas")
+	_, errb, err := runImageCLI(t, "--workspace", root, "image", "set", "species-web", "emobase-web:local", "--only", "Tcas")
 	if err != nil {
 		t.Fatalf("err = %v, stderr = %s", err, errb)
 	}
@@ -352,6 +352,15 @@ func TestImageOBARequiresTcasOverlay(t *testing.T) {
 	}
 }
 
+func TestSpeciesWebAliases(t *testing.T) {
+	for _, name := range []string{"species-web", "web", "emobase-web"} {
+		target, ok := findImageTarget(name)
+		if !ok || target.Name != "species-web" {
+			t.Errorf("findImageTarget(%q) = %q, %v", name, target.Name, ok)
+		}
+	}
+}
+
 func TestImageSetRejectsWhitespace(t *testing.T) {
 	root, _ := imageFixture(t)
 	_, _, err := runImageCLI(t, "--workspace", root, "image", "set", "genomics", "two words")
@@ -362,7 +371,7 @@ func TestImageSetRejectsWhitespace(t *testing.T) {
 
 func TestImageSetRejectsMismatchedOnly(t *testing.T) {
 	root, _ := imageFixture(t)
-	_, _, err := runImageCLI(t, "--workspace", root, "image", "set", "web", "emobase-web:local", "--only", "portal")
+	_, _, err := runImageCLI(t, "--workspace", root, "image", "set", "species-web", "emobase-web:local", "--only", "portal")
 	if err == nil || !strings.Contains(err.Error(), "does not select a species stack") {
 		t.Fatalf("err = %v", err)
 	}

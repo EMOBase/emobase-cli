@@ -190,7 +190,7 @@ func previewImageRows(overrides, all bool) []imageRow {
 	rows := []imageRow{
 		{Target: "genomics", Variable: "EMOBASE_GENOMICS_IMAGE", Image: "ghcr.io/emobase/emobase-genomics:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
 		{Target: "portal-web", Variable: "EMOBASE_PORTAL_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-portal-web:main", Source: imageSourceDefault, Role: "portal", Checkout: "emobase-portal-deploy"},
-		{Target: "web", Variable: "EMOBASE_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
+		{Target: "species-web", Variable: "EMOBASE_WEB_IMAGE", Image: "ghcr.io/emobase/emobase-web:dev", Source: imageSourceDefault, Role: "species", Checkout: "emobase-deploy-tcas"},
 	}
 	if overrides {
 		rows[0].Image = "emobase-genomics:local"
@@ -314,11 +314,11 @@ func previewCases() []previewCase {
 			})
 		}},
 		{Name: "image-set-species", Group: "image", Description: "pin one image across several species", Render: func() string {
-			t, _ := findImageTarget("web")
+			t, _ := findImageTarget("species-web")
 			return renderImageChanges(t, []imageChange{
-				{Target: "web", Checkout: "emobase-deploy-dmel", Variable: "EMOBASE_WEB_IMAGE",
+				{Target: "species-web", Checkout: "emobase-deploy-dmel", Variable: "EMOBASE_WEB_IMAGE",
 					New: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev"},
-				{Target: "web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
+				{Target: "species-web", Checkout: "emobase-deploy-tcas", Variable: "EMOBASE_WEB_IMAGE",
 					New: "emobase-web:local", Default: "ghcr.io/emobase/emobase-web:dev"},
 			})
 		}},

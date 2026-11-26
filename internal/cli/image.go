@@ -41,8 +41,8 @@ var managedImages = []imageTarget{
 		Aliases: []string{"emobase-genomics", "genomicsservice"}},
 	{Name: "portal-web", Variable: "EMOBASE_PORTAL_WEB_IMAGE", Role: workspace.RolePortal, Group: imageGroupApp,
 		Aliases: []string{"portalweb", "emobase-portal-web", "portal"}},
-	{Name: "web", Variable: "EMOBASE_WEB_IMAGE", Role: workspace.RoleSpecies, Group: imageGroupApp,
-		Aliases: []string{"species-web", "emobase-web", "species"}},
+	{Name: "species-web", Variable: "EMOBASE_WEB_IMAGE", Role: workspace.RoleSpecies, Group: imageGroupApp,
+		Aliases: []string{"web", "emobase-web", "species"}},
 
 	{Name: "ontologyservice", Variable: "ONTOLOGYSERVICE_IMAGE", Role: workspace.RoleSpecies, Group: imageGroupService,
 		Aliases: []string{"ontology", "ontology-service"}},

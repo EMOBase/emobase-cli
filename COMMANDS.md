@@ -158,7 +158,7 @@ stack's `.env`:
 | --- | --- | --- |
 | `genomics` | `EMOBASE_GENOMICS_IMAGE` | portal |
 | `portal-web` | `EMOBASE_PORTAL_WEB_IMAGE` | portal |
-| `web` | `EMOBASE_WEB_IMAGE` | every species, or one with `--only` |
+| `species-web` | `EMOBASE_WEB_IMAGE` | every species, or one with `--only` |
 | `ontologyservice` | `ONTOLOGYSERVICE_IMAGE` | every species, or one with `--only` |
 | `imageservice` | `IMAGESERVICE_IMAGE` | every species, or one with `--only` |
 | `phenotypeservice` | `PHENOTYPESERVICE_IMAGE` | every species, or one with `--only` |
@@ -167,8 +167,9 @@ stack's `.env`:
 | `oba` | `OBA_IMAGE` | Tcas-overlay species, or one with `--only` |
 
 The full repository names (`emobase-genomics`, `emobase-portal-web`,
-`emobase-web`) are accepted as target aliases. `oba` is only available when the
-stack's `COMPOSE_FILE` includes `compose.tcas.yml`.
+`emobase-web`) are accepted as target aliases, as is `web` for `species-web`.
+`oba` is only available when the stack's `COMPOSE_FILE` includes
+`compose.tcas.yml`.
 
 By default `emobase image` lists the main app images plus any supporting service
 image that has an explicit override. `--all` also lists the supporting services
@@ -181,12 +182,12 @@ same as unset, matching Compose.
 emobase image                                      # same as emobase image list
 emobase image --all                                # include unchanged services
 emobase image set genomics ghcr.io/emobase/emobase-genomics:v0.6.0
-emobase image set web emobase-web:local            # every species stack
-emobase image set web emobase-web:local --only Tcas
+emobase image set species-web emobase-web:local    # every species stack
+emobase image set species-web emobase-web:local --only Tcas
 emobase image set ontologyservice ghcr.io/emobase/ibb-ontologyservice:test
 emobase image set oba azul/zulu-openjdk:7 --only Tcas
 emobase image reset genomics                       # back to the Compose default
-emobase image reset web --only Tcas
+emobase image reset species-web --only Tcas
 ```
 
 `set` updates the key in place, or appends it when absent. `reset` removes it.
