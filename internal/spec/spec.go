@@ -38,7 +38,8 @@ var RequiredInfra = []string{
 	"KEYCLOAK_ADMIN_PASSWORD",
 }
 
-// RequiredPortal is the minimum set for the portal stack.
+// RequiredPortal is the minimum set for the portal stack. Image variables are
+// optional overrides: Compose supplies a fallback when they are absent.
 var RequiredPortal = []string{
 	"PUBLIC_SERVER",
 	"HTTP_PORT",
@@ -48,8 +49,6 @@ var RequiredPortal = []string{
 	"EMOBASE_GENOMICS_MYSQL__USER",
 	"EMOBASE_GENOMICS_MYSQL__DATABASE",
 	"AUTH_SECRET",
-	"EMOBASE_GENOMICS_IMAGE",
-	"EMOBASE_PORTAL_WEB_IMAGE",
 	"KEYCLOAK_REALM",
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
@@ -60,7 +59,8 @@ var RequiredPortal = []string{
 // RequiredSpecies is the minimum set for a species stack. It mirrors what
 // emobase-deploy/init.sh writes and compose.yml consumes. PORTAL_INTERNAL_URL
 // and INTERNAL_API_GENOMICS_SERVICE are deliberately absent: a remote portal
-// leaves them empty and compose falls back to PORTAL_SERVER.
+// leaves them empty and compose falls back to PORTAL_SERVER. Image variables
+// are optional overrides with Compose fallbacks.
 var RequiredSpecies = []string{
 	"MAIN_SPECIES",
 	"PUBLIC_SERVER",
@@ -76,7 +76,6 @@ var RequiredSpecies = []string{
 	"KEYCLOAK_REALM_MODE",
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
-	"EMOBASE_WEB_IMAGE",
 	"SSR_OIDC_SESSION_SECRET",
 	"INTERNAL_KEYCLOAK_ISSUER",
 	"INTERNAL_DIRECTUS_URL",

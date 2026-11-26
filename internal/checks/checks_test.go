@@ -172,6 +172,21 @@ func TestConsistentWorkspaceHasNoErrors(t *testing.T) {
 	}
 }
 
+func TestImageOverridesAreOptional(t *testing.T) {
+	root, envs := fixture(t)
+	delete(envs["emobase-portal-deploy"], "EMOBASE_GENOMICS_IMAGE")
+	delete(envs["emobase-portal-deploy"], "EMOBASE_PORTAL_WEB_IMAGE")
+	delete(envs["emobase-deploy-tcas"], "EMOBASE_WEB_IMAGE")
+
+	rep := Run(discover(t, root, envs))
+	if rep.HasErrors() {
+		for _, f := range rep.Findings {
+			t.Logf("%s %s: %s", f.Severity, f.Scope, f.Message)
+		}
+		t.Fatal("missing image overrides should not be errors")
+	}
+}
+
 func TestMissingSharedKeyIsSafeFix(t *testing.T) {
 	root, envs := fixture(t)
 	delete(envs["emobase-portal-deploy"], "MYSQL_ROOT_PASSWORD")
