@@ -121,7 +121,6 @@ emobase bootstrap                     # first start, in dependency order
 emobase status                        # containers, databases, realms and URLs
 emobase doctor [--live]               # check the cross-repo configuration
 emobase domain [plan|apply|status]    # change public URLs and Keycloak issuer
-emobase image [list|set|reset]        # view or change portal/species images
 emobase up                            # start in dependency order
 emobase down                          # stop dependants first
 emobase update                        # pull, migrate, restart
