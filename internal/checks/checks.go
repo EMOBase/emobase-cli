@@ -282,7 +282,7 @@ func Run(w *workspace.Workspace) *Report {
 		checkESIndexPrefix(r, sp)
 		checkShared(r, w, sp)
 		checkSpeciesRealm(r, sp)
-		checkIssuerKeys(r, sp)
+		checkSpeciesKeycloakURL(r, sp)
 	}
 	checkRealmGroups(r, w)
 	checkSpeciesPortalURL(r, w)
@@ -561,27 +561,68 @@ func checkRealmGroups(r *Report, w *workspace.Workspace) {
 	}
 }
 
-func checkIssuerKeys(r *Report, st *workspace.Stack) {
-	realm, _ := st.Get("KEYCLOAK_REALM")
-	if realm == "" {
+// checkSpeciesKeycloakURL validates the container-facing Keycloak base URL.
+// Compose appends /realms/<realm>; a full issuer, the infra service name, or a
+// loopback fallback would make server-side sign-in fail.
+func checkSpeciesKeycloakURL(r *Report, st *workspace.Stack) {
+	if realm, _ := st.Get("KEYCLOAK_REALM"); realm == "" {
 		return
 	}
-	for _, key := range []string{"INTERNAL_KEYCLOAK_ISSUER"} {
-		v, ok := st.Get(key)
-		if !ok || v == "" {
-			continue
-		}
-		if !strings.HasSuffix(spec.NormalizeURL(v), "/realms/"+realm) {
+	v, ok := st.Get("KEYCLOAK_INTERNAL_URL")
+	v = strings.TrimSpace(v)
+	public, _ := st.Get("KEYCLOAK_PUBLIC_URL")
+	if ok && v != "" {
+		if strings.Contains(v, "/realms/") {
 			r.add(Finding{
-				Check:    "issuer." + key,
+				Check:    "keycloak.internal_url",
 				Scope:    scopeOf(st),
 				Severity: Warn,
 				Fix:      FixNone,
-				Message:  fmt.Sprintf("%s does not end with /realms/%s", key, realm),
-				Hint:     "server-side sign-in will fail; align it with KEYCLOAK_REALM",
+				Message:  "KEYCLOAK_INTERNAL_URL is a full issuer; Compose appends /realms/<realm>",
+				Hint:     "use the base URL, for example http://host.docker.internal:8181/keycloak",
 			})
+			return
+		}
+		if strings.EqualFold(spec.NormalizeURL(v), "http://keycloak:8080/keycloak") {
+			r.add(Finding{
+				Check:    "keycloak.internal_url",
+				Scope:    scopeOf(st),
+				Severity: Warn,
+				Fix:      FixNone,
+				Message:  "KEYCLOAK_INTERNAL_URL uses the infra service name, which app containers cannot resolve",
+				Hint:     "use http://host.docker.internal:8181/keycloak or the public Keycloak URL",
+			})
+			return
 		}
 	}
+	// Compose falls back to KEYCLOAK_PUBLIC_URL when the internal value is
+	// empty. That is wrong only when the public URL is a loopback address.
+	if !isLoopbackURL(public) {
+		return
+	}
+	if v != "" && !strings.EqualFold(spec.NormalizeURL(v), spec.NormalizeURL(public)) {
+		return
+	}
+	r.add(Finding{
+		Check:    "keycloak.internal_url",
+		Scope:    scopeOf(st),
+		Severity: Warn,
+		Fix:      FixNone,
+		Message:  "KEYCLOAK_PUBLIC_URL is a loopback address and KEYCLOAK_INTERNAL_URL does not replace it",
+		Hint:     "set KEYCLOAK_INTERNAL_URL=http://host.docker.internal:<keycloak port>/keycloak",
+	})
+}
+
+func isLoopbackURL(raw string) bool {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
 }
 
 func checkSpeciesPortalURL(r *Report, w *workspace.Workspace) {
@@ -837,7 +878,6 @@ func checkInternalHosts(r *Report, w *workspace.Workspace) {
 	keys := []string{
 		"KEYCLOAK_INTERNAL_URL",
 		"PORTAL_INTERNAL_URL",
-		"INTERNAL_KEYCLOAK_ISSUER",
 		"INTERNAL_DIRECTUS_URL",
 	}
 	for _, st := range w.All() {

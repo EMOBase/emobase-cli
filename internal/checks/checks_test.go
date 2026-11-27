@@ -54,37 +54,36 @@ func portalEnv() map[string]string {
 
 func speciesEnv() map[string]string {
 	return map[string]string{
-		"MAIN_SPECIES":             "Tcas",
-		"PUBLIC_SERVER":            "http://localhost:9090",
-		"PUBLIC_HOST":              "localhost",
-		"HTTP_PORT":                "9090",
-		"PORTAL_SERVER":            "http://localhost:9080",
-		"PORTAL_INTERNAL_URL":      "http://host.docker.internal:9080",
-		"DIRECTUS_DB_DATABASE":     "directus_tcas",
-		"EMOBASE_ES_INDEX_PREFIX":  "tcas",
-		"DIRECTUS_SECRET":          "d-secret",
-		"DIRECTUS_ADMIN_EMAIL":     "admin@example.org",
-		"DIRECTUS_ADMIN_PASSWORD":  "d-admin",
-		"COCO_USERNAME":            "coco",
-		"COCO_PASSWORD":            "coco-secret",
-		"EMOBASE_WEB_IMAGE":        "w:dev",
-		"COMPOSE_PROJECT_NAME":     "tcas",
-		"SSR_OIDC_SESSION_SECRET":  "ssr-secret",
-		"INTERNAL_KEYCLOAK_ISSUER": "http://host.docker.internal:8181/keycloak/realms/emobase-portal",
-		"INTERNAL_DIRECTUS_URL":    "http://directus:8055",
-		"PUBLIC_DATA_DIR":          "./data/public",
-		"PRIVATE_DATA_DIR":         "./data/private",
-		"IMAGE_DIR":                "./data/images",
-		"UID":                      "1000",
-		"GID":                      "1000",
-		"EMOBASE_INFRA_NETWORK":    "emobase-infra",
-		"MYSQL_ROOT_PASSWORD":      "root-secret",
-		"KEYCLOAK_PUBLIC_URL":      "http://localhost:8181/keycloak",
-		"KEYCLOAK_INTERNAL_URL":    "http://keycloak:8080/keycloak",
-		"KEYCLOAK_REALM":           "emobase-portal",
-		"KEYCLOAK_REALM_MODE":      "joined",
-		"KEYCLOAK_CLIENT_ID":       "emobase-portal-client",
-		"KEYCLOAK_CLIENT_SECRET":   "client-secret",
+		"MAIN_SPECIES":            "Tcas",
+		"PUBLIC_SERVER":           "http://localhost:9090",
+		"PUBLIC_HOST":             "localhost",
+		"HTTP_PORT":               "9090",
+		"PORTAL_SERVER":           "http://localhost:9080",
+		"PORTAL_INTERNAL_URL":     "http://host.docker.internal:9080",
+		"DIRECTUS_DB_DATABASE":    "directus_tcas",
+		"EMOBASE_ES_INDEX_PREFIX": "tcas",
+		"DIRECTUS_SECRET":         "d-secret",
+		"DIRECTUS_ADMIN_EMAIL":    "admin@example.org",
+		"DIRECTUS_ADMIN_PASSWORD": "d-admin",
+		"COCO_USERNAME":           "coco",
+		"COCO_PASSWORD":           "coco-secret",
+		"EMOBASE_WEB_IMAGE":       "w:dev",
+		"COMPOSE_PROJECT_NAME":    "tcas",
+		"SSR_OIDC_SESSION_SECRET": "ssr-secret",
+		"INTERNAL_DIRECTUS_URL":   "http://directus:8055",
+		"PUBLIC_DATA_DIR":         "./data/public",
+		"PRIVATE_DATA_DIR":        "./data/private",
+		"IMAGE_DIR":               "./data/images",
+		"UID":                     "1000",
+		"GID":                     "1000",
+		"EMOBASE_INFRA_NETWORK":   "emobase-infra",
+		"MYSQL_ROOT_PASSWORD":     "root-secret",
+		"KEYCLOAK_PUBLIC_URL":     "http://localhost:8181/keycloak",
+		"KEYCLOAK_INTERNAL_URL":   "http://host.docker.internal:8181/keycloak",
+		"KEYCLOAK_REALM":          "emobase-portal",
+		"KEYCLOAK_REALM_MODE":     "joined",
+		"KEYCLOAK_CLIENT_ID":      "emobase-portal-client",
+		"KEYCLOAK_CLIENT_SECRET":  "client-secret",
 	}
 }
 
@@ -357,36 +356,35 @@ func TestDuplicatePortsAndDatabases(t *testing.T) {
 	root, envs := fixture(t)
 	envs["emobase-portal-deploy"]["HTTP_PORT"] = "9090"
 	mkDir(t, root, "emobase-deploy-dmel", speciesCompose, map[string]string{
-		"MAIN_SPECIES":             "Dmel",
-		"PUBLIC_SERVER":            "http://localhost:9091",
-		"HTTP_PORT":                "9091",
-		"PORTAL_SERVER":            "http://localhost:9080",
-		"PORTAL_INTERNAL_URL":      "http://host.docker.internal:9080",
-		"DIRECTUS_DB_DATABASE":     "directus_tcas",
-		"EMOBASE_ES_INDEX_PREFIX":  "dmel",
-		"DIRECTUS_SECRET":          "x",
-		"DIRECTUS_ADMIN_EMAIL":     "a@b.c",
-		"DIRECTUS_ADMIN_PASSWORD":  "x",
-		"COCO_USERNAME":            "coco",
-		"COCO_PASSWORD":            "coco-secret",
-		"EMOBASE_WEB_IMAGE":        "w:dev",
-		"COMPOSE_PROJECT_NAME":     "dmel",
-		"SSR_OIDC_SESSION_SECRET":  "x",
-		"INTERNAL_KEYCLOAK_ISSUER": "http://host.docker.internal:8181/keycloak/realms/emobase-portal",
-		"INTERNAL_DIRECTUS_URL":    "http://d",
-		"PUBLIC_DATA_DIR":          "./p",
-		"PRIVATE_DATA_DIR":         "./pr",
-		"IMAGE_DIR":                "./i",
-		"UID":                      "1000",
-		"GID":                      "1000",
-		"EMOBASE_INFRA_NETWORK":    "emobase-infra",
-		"MYSQL_ROOT_PASSWORD":      "root-secret",
-		"KEYCLOAK_PUBLIC_URL":      "http://localhost:8181/keycloak",
-		"KEYCLOAK_INTERNAL_URL":    "http://keycloak:8080/keycloak",
-		"KEYCLOAK_REALM":           "emobase-portal",
-		"KEYCLOAK_REALM_MODE":      "joined",
-		"KEYCLOAK_CLIENT_ID":       "emobase-portal-client",
-		"KEYCLOAK_CLIENT_SECRET":   "client-secret",
+		"MAIN_SPECIES":            "Dmel",
+		"PUBLIC_SERVER":           "http://localhost:9091",
+		"HTTP_PORT":               "9091",
+		"PORTAL_SERVER":           "http://localhost:9080",
+		"PORTAL_INTERNAL_URL":     "http://host.docker.internal:9080",
+		"DIRECTUS_DB_DATABASE":    "directus_tcas",
+		"EMOBASE_ES_INDEX_PREFIX": "dmel",
+		"DIRECTUS_SECRET":         "x",
+		"DIRECTUS_ADMIN_EMAIL":    "a@b.c",
+		"DIRECTUS_ADMIN_PASSWORD": "x",
+		"COCO_USERNAME":           "coco",
+		"COCO_PASSWORD":           "coco-secret",
+		"EMOBASE_WEB_IMAGE":       "w:dev",
+		"COMPOSE_PROJECT_NAME":    "dmel",
+		"SSR_OIDC_SESSION_SECRET": "x",
+		"INTERNAL_DIRECTUS_URL":   "http://d",
+		"PUBLIC_DATA_DIR":         "./p",
+		"PRIVATE_DATA_DIR":        "./pr",
+		"IMAGE_DIR":               "./i",
+		"UID":                     "1000",
+		"GID":                     "1000",
+		"EMOBASE_INFRA_NETWORK":   "emobase-infra",
+		"MYSQL_ROOT_PASSWORD":     "root-secret",
+		"KEYCLOAK_PUBLIC_URL":     "http://localhost:8181/keycloak",
+		"KEYCLOAK_INTERNAL_URL":   "http://host.docker.internal:8181/keycloak",
+		"KEYCLOAK_REALM":          "emobase-portal",
+		"KEYCLOAK_REALM_MODE":     "joined",
+		"KEYCLOAK_CLIENT_ID":      "emobase-portal-client",
+		"KEYCLOAK_CLIENT_SECRET":  "client-secret",
 	})
 	ws := discover(t, root, envs)
 	rep := Run(ws)
@@ -433,7 +431,7 @@ func TestDuplicateESIndexPrefix(t *testing.T) {
 func TestDedicatedRealmNeedsClient(t *testing.T) {
 	root, envs := fixture(t)
 	envs["emobase-deploy-tcas"]["KEYCLOAK_REALM"] = "ibb_tcas"
-	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8181/keycloak/realms/ibb_tcas"
+	envs["emobase-deploy-tcas"]["KEYCLOAK_INTERNAL_URL"] = "http://host.docker.internal:8181/keycloak"
 	delete(envs["emobase-deploy-tcas"], "KEYCLOAK_CLIENT_ID")
 	delete(envs["emobase-deploy-tcas"], "KEYCLOAK_CLIENT_SECRET")
 	ws := discover(t, root, envs)
@@ -446,18 +444,35 @@ func TestDedicatedRealmNeedsClient(t *testing.T) {
 	if find(rep, "shared.KEYCLOAK_CLIENT_ID") != nil {
 		t.Fatal("dedicated realm should own its client")
 	}
-	if find(rep, "issuer.INTERNAL_KEYCLOAK_ISSUER") != nil {
-		t.Fatal("matching issuer reported")
+	if find(rep, "keycloak.internal_url") != nil {
+		t.Fatal("valid Keycloak base URL reported")
 	}
 }
 
-func TestIssuerMismatchWarns(t *testing.T) {
+func TestKeycloakInternalURLWarnsAboutFullIssuer(t *testing.T) {
 	root, envs := fixture(t)
-	envs["emobase-deploy-tcas"]["INTERNAL_KEYCLOAK_ISSUER"] = "http://host.docker.internal:8181/keycloak/realms/other"
-	ws := discover(t, root, envs)
-	f := find(Run(ws), "issuer.INTERNAL_KEYCLOAK_ISSUER")
+	envs["emobase-deploy-tcas"]["KEYCLOAK_INTERNAL_URL"] = "https://auth.example.org/keycloak/realms/ibb"
+	f := find(Run(discover(t, root, envs)), "keycloak.internal_url")
 	if f == nil || f.Severity != Warn {
-		t.Fatalf("finding = %#v", f)
+		t.Fatalf("full issuer finding = %#v", f)
+	}
+}
+
+func TestKeycloakInternalURLWarnsAboutInfraName(t *testing.T) {
+	root, envs := fixture(t)
+	envs["emobase-deploy-tcas"]["KEYCLOAK_INTERNAL_URL"] = "http://keycloak:8080/keycloak"
+	f := find(Run(discover(t, root, envs)), "keycloak.internal_url")
+	if f == nil || f.Severity != Warn {
+		t.Fatalf("infra name finding = %#v", f)
+	}
+}
+
+func TestKeycloakInternalURLWarnsAboutLoopbackFallback(t *testing.T) {
+	root, envs := fixture(t)
+	delete(envs["emobase-deploy-tcas"], "KEYCLOAK_INTERNAL_URL")
+	f := find(Run(discover(t, root, envs)), "keycloak.internal_url")
+	if f == nil || f.Severity != Warn {
+		t.Fatalf("loopback fallback finding = %#v", f)
 	}
 }
 

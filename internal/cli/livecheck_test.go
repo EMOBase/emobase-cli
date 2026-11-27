@@ -18,7 +18,7 @@ func TestKeycloakProbeHint(t *testing.T) {
 			name:  "tls",
 			out:   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
 			cause: "does not trust the TLS certificate",
-			hint:  "INTERNAL_KEYCLOAK_ISSUER=http://host.docker.internal:8181/keycloak/realms/ibb",
+			hint:  "KEYCLOAK_INTERNAL_URL=http://host.docker.internal:8181/keycloak",
 		},
 		{
 			name:  "dns",

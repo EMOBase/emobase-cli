@@ -210,7 +210,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 	}
 }
 
-// probeKeycloakFromApp verifies INTERNAL_KEYCLOAK_ISSUER from inside the app
+// probeKeycloakFromApp verifies the server-side issuer from inside the app
 // container. The host can trust a certificate or resolve a name that the
 // container cannot, so a fetch from the host does not prove that the callback
 // token exchange will work.
@@ -218,8 +218,7 @@ func probeKeycloakFromApp(ctx context.Context, sp *workspace.Stack, rep *checks.
 	if sp.MissingEnv {
 		return
 	}
-	issuer, _ := sp.Get("INTERNAL_KEYCLOAK_ISSUER")
-	issuer = strings.TrimSpace(issuer)
+	issuer := internalKeycloakIssuer(sp)
 	if issuer == "" {
 		return
 	}
@@ -250,11 +249,28 @@ func probeKeycloakFromApp(ctx context.Context, sp *workspace.Stack, rep *checks.
 	var reason, hint string
 	if strings.TrimSpace(out) == "" {
 		reason = fmt.Sprintf("the app container did not answer %s within 12s", issuerHost(issuer))
-		hint = "check that emobase-infra is running and INTERNAL_KEYCLOAK_ISSUER points at a reachable host"
+		hint = "check that emobase-infra is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
 	} else {
 		reason, hint = keycloakProbeHint(out, issuerHost(issuer), strings.TrimSpace(realm))
 	}
 	rep.Add(checks.Advisory("live.keycloak_internal", checks.ScopeOf(sp), checks.Error, reason, hint))
+}
+
+// internalKeycloakIssuer mirrors Compose: KEYCLOAK_INTERNAL_URL, else
+// KEYCLOAK_PUBLIC_URL, plus /realms/<realm>.
+func internalKeycloakIssuer(sp *workspace.Stack) string {
+	base, _ := sp.Get("KEYCLOAK_INTERNAL_URL")
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base, _ = sp.Get("KEYCLOAK_PUBLIC_URL")
+		base = strings.TrimSpace(base)
+	}
+	realm, _ := sp.Get("KEYCLOAK_REALM")
+	realm = strings.TrimSpace(realm)
+	if base == "" || realm == "" {
+		return ""
+	}
+	return strings.TrimRight(base, "/") + "/realms/" + realm
 }
 
 func issuerHost(issuer string) string {
@@ -269,7 +285,7 @@ func issuerHost(issuer string) string {
 // into a cause and an actionable hint.
 func keycloakProbeHint(out, host, realm string) (string, string) {
 	low := strings.ToLower(out)
-	fallback := "http://host.docker.internal:8181/keycloak/realms/" + realm
+	fallback := "http://host.docker.internal:8181/keycloak"
 	switch {
 	case strings.Contains(low, "unable_to_verify_leaf_signature"),
 		strings.Contains(low, "self_signed_cert_in_chain"),
@@ -277,16 +293,16 @@ func keycloakProbeHint(out, host, realm string) (string, string) {
 		strings.Contains(low, "err_tls_cert_altname_invalid"),
 		strings.Contains(low, "certificate"):
 		return fmt.Sprintf("the app container does not trust the TLS certificate at %s", host),
-			fmt.Sprintf("set INTERNAL_KEYCLOAK_ISSUER=%s for a private CA, or mount the CA into fe and set NODE_EXTRA_CA_CERTS", fallback)
+			fmt.Sprintf("set KEYCLOAK_INTERNAL_URL=%s for a private CA, or mount the CA into fe and set NODE_EXTRA_CA_CERTS", fallback)
 	case strings.Contains(low, "enotfound"):
 		return fmt.Sprintf("the app container cannot resolve %s", host),
-			fmt.Sprintf("the name may exist only in the host's /etc/hosts; set INTERNAL_KEYCLOAK_ISSUER=%s", fallback)
+			fmt.Sprintf("the name may exist only in the host's /etc/hosts; set KEYCLOAK_INTERNAL_URL=%s", fallback)
 	case strings.Contains(low, "econnrefused"), strings.Contains(low, "etimedout"), strings.Contains(low, "ehostunreach"):
 		return fmt.Sprintf("the app container cannot connect to %s", host),
-			"check that emobase-infra is running and INTERNAL_KEYCLOAK_ISSUER points at a reachable host"
+			"check that emobase-infra is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
 	case strings.Contains(low, "status "):
-		return "INTERNAL_KEYCLOAK_ISSUER answered " + probeStatusLine(out),
-			fmt.Sprintf("the issuer path must end with /realms/%s and the realm must exist", realm)
+		return "the Keycloak issuer answered " + probeStatusLine(out),
+			fmt.Sprintf("KEYCLOAK_INTERNAL_URL must be a base URL and the realm /realms/%s must exist", realm)
 	default:
 		line := probeFirstLine(out)
 		if line == "" {

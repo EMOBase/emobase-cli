@@ -45,13 +45,13 @@ func domainFixture() *workspace.Workspace {
 		"KEYCLOAK_REALM":      "ibb",
 	})
 	species := domainTestStack(workspace.RoleSpecies, "emobase-deploy-tcas", "/srv/emobase/emobase-deploy-tcas", map[string]string{
-		"MAIN_SPECIES":             "Tcas",
-		"PUBLIC_SERVER":            "http://localhost:9090",
-		"PORTAL_SERVER":            "http://localhost:9080",
-		"PORTAL_INTERNAL_URL":      "http://host.docker.internal:9080",
-		"KEYCLOAK_PUBLIC_URL":      "http://localhost:8181/keycloak",
-		"KEYCLOAK_REALM":           "ibb",
-		"INTERNAL_KEYCLOAK_ISSUER": "http://host.docker.internal:8181/keycloak/realms/ibb",
+		"MAIN_SPECIES":          "Tcas",
+		"PUBLIC_SERVER":         "http://localhost:9090",
+		"PORTAL_SERVER":         "http://localhost:9080",
+		"PORTAL_INTERNAL_URL":   "http://host.docker.internal:9080",
+		"KEYCLOAK_PUBLIC_URL":   "http://localhost:8181/keycloak",
+		"KEYCLOAK_REALM":        "ibb",
+		"KEYCLOAK_INTERNAL_URL": "http://host.docker.internal:8181/keycloak",
 	})
 	return &workspace.Workspace{Root: "/srv/emobase", Infra: infra, Portal: portal, Species: []*workspace.Stack{species}}
 }
@@ -84,7 +84,7 @@ func TestDomainPlanAuthChangeUpdatesEveryStack(t *testing.T) {
 		"infra/KEYCLOAK_PUBLIC_URL",
 		"portal/KEYCLOAK_PUBLIC_URL",
 		"species:emobase-deploy-tcas/KEYCLOAK_PUBLIC_URL",
-		"species:emobase-deploy-tcas/INTERNAL_KEYCLOAK_ISSUER",
+		"species:emobase-deploy-tcas/KEYCLOAK_INTERNAL_URL",
 	} {
 		if !hasDomainChange(plan, want) {
 			t.Errorf("missing %s", want)
@@ -96,8 +96,8 @@ func TestDomainPlanAuthChangeUpdatesEveryStack(t *testing.T) {
 	if len(plan.Restarts) != 3 {
 		t.Fatalf("restarts = %d", len(plan.Restarts))
 	}
-	if got := findDomainChange(plan, "species:emobase-deploy-tcas/INTERNAL_KEYCLOAK_ISSUER").New; got != "https://auth.example.org/keycloak/realms/ibb" {
-		t.Fatalf("issuer = %q", got)
+	if got := findDomainChange(plan, "species:emobase-deploy-tcas/KEYCLOAK_INTERNAL_URL").New; got != "https://auth.example.org/keycloak" {
+		t.Fatalf("internal URL = %q", got)
 	}
 }
 
@@ -252,12 +252,12 @@ func TestDomainURLValidation(t *testing.T) {
 	}
 }
 
-func TestDerivedInternalIssuer(t *testing.T) {
-	if got := derivedInternalIssuer("http://localhost:8181/keycloak", "8181", "ibb"); got != "http://host.docker.internal:8181/keycloak/realms/ibb" {
-		t.Fatalf("loopback issuer = %q", got)
+func TestDerivedInternalKeycloakURL(t *testing.T) {
+	if got := derivedInternalKeycloakURL("http://localhost:8181/keycloak", "8181"); got != "http://host.docker.internal:8181/keycloak" {
+		t.Fatalf("loopback URL = %q", got)
 	}
-	if got := derivedInternalIssuer("https://auth.example.org/keycloak", "8181", "ibb_tcas"); got != "https://auth.example.org/keycloak/realms/ibb_tcas" {
-		t.Fatalf("public issuer = %q", got)
+	if got := derivedInternalKeycloakURL("https://auth.example.org/keycloak", "8181"); got != "https://auth.example.org/keycloak" {
+		t.Fatalf("public URL = %q", got)
 	}
 }
 

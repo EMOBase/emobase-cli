@@ -16,7 +16,7 @@ func TestIsSecret(t *testing.T) {
 		{"DIRECTUS_KEY", true},
 		{"COCO_PASSWORD", true},
 		{"PUBLIC_SERVER", false},
-		{"INTERNAL_KEYCLOAK_ISSUER", false},
+		{"KEYCLOAK_INTERNAL_URL", false},
 		{"KEYCLOAK_PUBLIC_URL", false},
 		{"EMOBASE_INFRA_NETWORK", false},
 	}

@@ -385,10 +385,10 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 				Stack: sp, Scope: domainScope(sp),
 				Key: "KEYCLOAK_PUBLIC_URL", Old: mustGet(sp, "KEYCLOAK_PUBLIC_URL"), New: authNew,
 			})
-			issuer := derivedInternalIssuer(authNew, hostPort, realm)
+			internalURL := derivedInternalKeycloakURL(authNew, hostPort)
 			plan.Changes = append(plan.Changes, domainChange{
 				Stack: sp, Scope: domainScope(sp),
-				Key: "INTERNAL_KEYCLOAK_ISSUER", Old: mustGet(sp, "INTERNAL_KEYCLOAK_ISSUER"), New: issuer,
+				Key: "KEYCLOAK_INTERNAL_URL", Old: mustGet(sp, "KEYCLOAK_INTERNAL_URL"), New: internalURL,
 			})
 		}
 		if plan.PortalChanged {
@@ -811,7 +811,10 @@ func normalizeOptionalOrigin(raw string) (string, error) {
 	return normalizeOrigin(raw)
 }
 
-func derivedInternalIssuer(authURL, hostPort, realm string) string {
+// derivedInternalKeycloakURL returns the container-facing base URL that
+// Compose turns into the issuer. A loopback public URL is not reachable from a
+// container, so it becomes the host-gateway address with the published port.
+func derivedInternalKeycloakURL(authURL, hostPort string) string {
 	u, err := url.Parse(authURL)
 	if err == nil && isLoopbackHost(u.Hostname()) {
 		port := hostPort
@@ -821,9 +824,9 @@ func derivedInternalIssuer(authURL, hostPort, realm string) string {
 		if port == "" {
 			port = "8181"
 		}
-		return fmt.Sprintf("http://host.docker.internal:%s/keycloak/realms/%s", port, realm)
+		return fmt.Sprintf("http://host.docker.internal:%s/keycloak", port)
 	}
-	return strings.TrimRight(authURL, "/") + "/realms/" + realm
+	return strings.TrimRight(authURL, "/")
 }
 
 func isLoopbackHost(host string) bool {

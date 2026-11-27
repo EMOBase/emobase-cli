@@ -26,7 +26,6 @@ type SharedKey struct {
 var SharedToInfra = []SharedKey{
 	{Key: "MYSQL_ROOT_PASSWORD", Authority: AuthorityInfra, Secret: true},
 	{Key: "KEYCLOAK_PUBLIC_URL", Authority: AuthorityInfra},
-	{Key: "KEYCLOAK_INTERNAL_URL", Authority: AuthorityInfra},
 	{Key: "EMOBASE_INFRA_NETWORK", Authority: AuthorityInfra},
 }
 
@@ -49,6 +48,7 @@ var RequiredPortal = []string{
 	"EMOBASE_GENOMICS_MYSQL__USER",
 	"EMOBASE_GENOMICS_MYSQL__DATABASE",
 	"AUTH_SECRET",
+	"KEYCLOAK_INTERNAL_URL",
 	"KEYCLOAK_REALM",
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
@@ -57,9 +57,10 @@ var RequiredPortal = []string{
 }
 
 // RequiredSpecies is the minimum set for a species stack. It mirrors what
-// emobase-deploy/init.sh writes and compose.yml consumes. PORTAL_INTERNAL_URL is
-// absent: a remote portal leaves it empty and Compose falls back to
-// PORTAL_SERVER. Image variables are optional overrides with Compose fallbacks.
+// emobase-deploy/init.sh writes and compose.yml consumes. PORTAL_INTERNAL_URL and
+// KEYCLOAK_INTERNAL_URL are absent: a remote portal or Keycloak leaves them
+// empty and Compose falls back to the public URL. Image variables are optional
+// overrides with Compose fallbacks.
 var RequiredSpecies = []string{
 	"MAIN_SPECIES",
 	"PUBLIC_SERVER",
@@ -76,7 +77,6 @@ var RequiredSpecies = []string{
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
 	"SSR_OIDC_SESSION_SECRET",
-	"INTERNAL_KEYCLOAK_ISSUER",
 	"INTERNAL_DIRECTUS_URL",
 	"PUBLIC_DATA_DIR",
 	"PRIVATE_DATA_DIR",
@@ -88,12 +88,11 @@ var RequiredSpecies = []string{
 // URLKeys have no trailing slash by convention; Keycloak in particular treats
 // a trailing slash as a different issuer.
 var URLKeys = map[string]bool{
-	"PUBLIC_SERVER":            true,
-	"PORTAL_SERVER":            true,
-	"PORTAL_INTERNAL_URL":      true,
-	"KEYCLOAK_PUBLIC_URL":      true,
-	"KEYCLOAK_INTERNAL_URL":    true,
-	"INTERNAL_KEYCLOAK_ISSUER": true,
+	"PUBLIC_SERVER":         true,
+	"PORTAL_SERVER":         true,
+	"PORTAL_INTERNAL_URL":   true,
+	"KEYCLOAK_PUBLIC_URL":   true,
+	"KEYCLOAK_INTERNAL_URL": true,
 }
 
 // IsSecret reports whether a value must be masked in output.

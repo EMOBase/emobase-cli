@@ -84,14 +84,14 @@ This section lists the rules, not the values.
 
 - Every stack has a `.env` and every required key is non-empty.
 - Shared keys match the authoritative `emobase-infra` values
-  (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL` and
-  `EMOBASE_INFRA_NETWORK`).
+  (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL` and `EMOBASE_INFRA_NETWORK`).
 - Species `PORTAL_SERVER` values point at the local portal, or at a remote
   portal when the workspace has no `emobase-portal-deploy` checkout.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
 - URLs have no trailing slash.
-- `INTERNAL_KEYCLOAK_ISSUER` ends with `/realms/<realm>`.
+- `KEYCLOAK_INTERNAL_URL`, when set, is a base URL without `/realms/`; a
+  loopback public Keycloak needs a container-reachable value.
 - Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - Every checkout using the same realm uses the same client ID and secret.
@@ -102,9 +102,10 @@ This section lists the rules, not the values.
 
 `--live` additionally checks the Docker daemon, the shared network, container
 health, MySQL databases, Keycloak realm reachability, registered redirect URIs,
-portal/species HTTP endpoints, and that the app container can fetch
-`INTERNAL_KEYCLOAK_ISSUER` with its own DNS and CA store (TLS, DNS and
-connection errors are reported separately).
+portal/species HTTP endpoints, and that the app container can fetch the
+server-side issuer (`KEYCLOAK_INTERNAL_URL`, falling back to
+`KEYCLOAK_PUBLIC_URL`) with its own DNS and CA store (TLS, DNS and connection
+errors are reported separately).
 
 ### Fix classes
 

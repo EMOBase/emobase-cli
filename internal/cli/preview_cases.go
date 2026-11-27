@@ -55,7 +55,6 @@ COCO_USERNAME=coco
 COCO_PASSWORD=coco-secret
 EMOBASE_WEB_IMAGE=ghcr.io/emobase/web:latest
 SSR_OIDC_SESSION_SECRET=ssr-tcas-secret
-INTERNAL_KEYCLOAK_ISSUER=http://keycloak:8080/keycloak/realms/emobase-portal
 INTERNAL_DIRECTUS_URL=http://directus:8055
 PUBLIC_DATA_DIR=/srv/emobase/tcas/public
 PRIVATE_DATA_DIR=/srv/emobase/tcas/private
@@ -68,7 +67,7 @@ KEYCLOAK_CLIENT_ID=emobase-portal-client
 KEYCLOAK_CLIENT_SECRET=portal-secret
 MYSQL_ROOT_PASSWORD=root-secret
 KEYCLOAK_PUBLIC_URL=https://auth.example.org/keycloak
-KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak
+KEYCLOAK_INTERNAL_URL=http://host.docker.internal:8181/keycloak
 EMOBASE_INFRA_NETWORK=emobase-infra
 COMPOSE_PROJECT_NAME=tcas
 `
@@ -121,7 +120,6 @@ func conflictWorkspace() *workspace.Workspace {
 	dmel.Env.Set("KEYCLOAK_REALM_MODE", "dedicated")
 	dmel.Env.Set("KEYCLOAK_CLIENT_ID", "emobase-dmel-client")
 	dmel.Env.Set("KEYCLOAK_CLIENT_SECRET", "dmel-secret")
-	dmel.Env.Set("INTERNAL_KEYCLOAK_ISSUER", "http://keycloak:8080/keycloak/realms/emobase-dmel")
 	dmel.Env.Set("DIRECTUS_DB_DATABASE", "directus_tcas")
 	dmel.Env.Set("EMOBASE_ES_INDEX_PREFIX", "dmel")
 	dmel.Env.Set("HTTP_PORT", "9090")
