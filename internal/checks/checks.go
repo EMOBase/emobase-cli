@@ -566,7 +566,7 @@ func checkIssuerKeys(r *Report, st *workspace.Stack) {
 	if realm == "" {
 		return
 	}
-	for _, key := range []string{"INTERNAL_KEYCLOAK_ISSUER", "DIRECTUS_KEYCLOAK_ISSUER_URL"} {
+	for _, key := range []string{"INTERNAL_KEYCLOAK_ISSUER"} {
 		v, ok := st.Get(key)
 		if !ok || v == "" {
 			continue
@@ -837,7 +837,6 @@ func checkInternalHosts(r *Report, w *workspace.Workspace) {
 		"KEYCLOAK_INTERNAL_URL",
 		"PORTAL_INTERNAL_URL",
 		"INTERNAL_KEYCLOAK_ISSUER",
-		"DIRECTUS_KEYCLOAK_ISSUER_URL",
 		"INTERNAL_DIRECTUS_URL",
 		"INTERNAL_API_GENOMICS_SERVICE",
 	}

@@ -91,8 +91,7 @@ This section lists the rules, not the values.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
   names are unique across stacks.
 - URLs have no trailing slash.
-- `INTERNAL_KEYCLOAK_ISSUER`/`DIRECTUS_KEYCLOAK_ISSUER_URL` end with
-  `/realms/<realm>`.
+- `INTERNAL_KEYCLOAK_ISSUER` ends with `/realms/<realm>`.
 - Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
 - A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - Every checkout using the same realm uses the same client ID and secret.

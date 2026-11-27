@@ -89,13 +89,12 @@ var RequiredSpecies = []string{
 // URLKeys have no trailing slash by convention; Keycloak in particular treats
 // a trailing slash as a different issuer.
 var URLKeys = map[string]bool{
-	"PUBLIC_SERVER":                true,
-	"PORTAL_SERVER":                true,
-	"PORTAL_INTERNAL_URL":          true,
-	"KEYCLOAK_PUBLIC_URL":          true,
-	"KEYCLOAK_INTERNAL_URL":        true,
-	"INTERNAL_KEYCLOAK_ISSUER":     true,
-	"DIRECTUS_KEYCLOAK_ISSUER_URL": true,
+	"PUBLIC_SERVER":            true,
+	"PORTAL_SERVER":            true,
+	"PORTAL_INTERNAL_URL":      true,
+	"KEYCLOAK_PUBLIC_URL":      true,
+	"KEYCLOAK_INTERNAL_URL":    true,
+	"INTERNAL_KEYCLOAK_ISSUER": true,
 }
 
 // IsSecret reports whether a value must be masked in output.
@@ -106,8 +105,8 @@ func IsSecret(key string) bool {
 			return true
 		}
 	}
-	// Match KEY as a whole underscore-separated word only, so URLs such as
-	// DIRECTUS_KEYCLOAK_ISSUER_URL are not mistaken for secrets.
+	// Match KEY as a whole underscore-separated word only, so URL keys are not
+	// mistaken for secrets.
 	for _, part := range strings.Split(upper, "_") {
 		if part == "KEY" {
 			return true
