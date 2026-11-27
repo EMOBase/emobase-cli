@@ -833,12 +833,12 @@ func checkInfraLoopbackPort(r *Report, w *workspace.Workspace) {
 // Inside a container, localhost is the container itself; the shared stack is
 // reached through a Compose service name or host.docker.internal.
 func checkInternalHosts(r *Report, w *workspace.Workspace) {
+	// Derived URLs are covered through PORTAL_INTERNAL_URL.
 	keys := []string{
 		"KEYCLOAK_INTERNAL_URL",
 		"PORTAL_INTERNAL_URL",
 		"INTERNAL_KEYCLOAK_ISSUER",
 		"INTERNAL_DIRECTUS_URL",
-		"INTERNAL_API_GENOMICS_SERVICE",
 	}
 	for _, st := range w.All() {
 		if st.MissingEnv {

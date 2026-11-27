@@ -57,10 +57,9 @@ var RequiredPortal = []string{
 }
 
 // RequiredSpecies is the minimum set for a species stack. It mirrors what
-// emobase-deploy/init.sh writes and compose.yml consumes. PORTAL_INTERNAL_URL
-// and INTERNAL_API_GENOMICS_SERVICE are deliberately absent: a remote portal
-// leaves them empty and compose falls back to PORTAL_SERVER. Image variables
-// are optional overrides with Compose fallbacks.
+// emobase-deploy/init.sh writes and compose.yml consumes. PORTAL_INTERNAL_URL is
+// absent: a remote portal leaves it empty and Compose falls back to
+// PORTAL_SERVER. Image variables are optional overrides with Compose fallbacks.
 var RequiredSpecies = []string{
 	"MAIN_SPECIES",
 	"PUBLIC_SERVER",

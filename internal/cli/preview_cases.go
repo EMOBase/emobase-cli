@@ -55,7 +55,6 @@ COCO_USERNAME=coco
 COCO_PASSWORD=coco-secret
 EMOBASE_WEB_IMAGE=ghcr.io/emobase/web:latest
 SSR_OIDC_SESSION_SECRET=ssr-tcas-secret
-INTERNAL_API_GENOMICS_SERVICE=http://genomicsservice:8000
 INTERNAL_KEYCLOAK_ISSUER=http://keycloak:8080/keycloak/realms/emobase-portal
 INTERNAL_DIRECTUS_URL=http://directus:8055
 PUBLIC_DATA_DIR=/srv/emobase/tcas/public
