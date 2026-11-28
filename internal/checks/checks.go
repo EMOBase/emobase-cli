@@ -578,7 +578,7 @@ func checkSpeciesKeycloakURL(r *Report, st *workspace.Stack) {
 				Severity: Warn,
 				Fix:      FixNone,
 				Message:  "KEYCLOAK_INTERNAL_URL is a full issuer; Compose appends /realms/<realm>",
-				Hint:     "use the base URL, for example http://host.docker.internal:8181/keycloak",
+				Hint:     "use the base URL, for example http://host.docker.internal:9080/keycloak",
 			})
 			return
 		}
@@ -588,8 +588,8 @@ func checkSpeciesKeycloakURL(r *Report, st *workspace.Stack) {
 				Scope:    scopeOf(st),
 				Severity: Warn,
 				Fix:      FixNone,
-				Message:  "KEYCLOAK_INTERNAL_URL uses the infra service name, which app containers cannot resolve",
-				Hint:     "use http://host.docker.internal:8181/keycloak or the public Keycloak URL",
+				Message:  "KEYCLOAK_INTERNAL_URL uses the portal service name, which app containers cannot resolve",
+				Hint:     "use http://host.docker.internal:9080/keycloak or the public Keycloak URL",
 			})
 			return
 		}
@@ -608,7 +608,7 @@ func checkSpeciesKeycloakURL(r *Report, st *workspace.Stack) {
 		Severity: Warn,
 		Fix:      FixNone,
 		Message:  "KEYCLOAK_PUBLIC_URL is a loopback address and KEYCLOAK_INTERNAL_URL does not replace it",
-		Hint:     "set KEYCLOAK_INTERNAL_URL=http://host.docker.internal:<keycloak port>/keycloak",
+		Hint:     "set KEYCLOAK_INTERNAL_URL=http://host.docker.internal:<portal port>/keycloak",
 	})
 }
 

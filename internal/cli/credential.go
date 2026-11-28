@@ -59,7 +59,8 @@ func (a *App) credentialShowCmd() *cobra.Command {
 		Long: `Without an argument, show lists every stack's seed user and whether the
 password is still unused. The password itself is only printed when a stack is
 named, so the fleet view stays safe to paste into a ticket. 'show infra' prints
-the Keycloak admin credential from emobase-infra/.env.
+the Keycloak admin credential; it lives in emobase-portal-deploy/.env because
+the portal owns Keycloak.
 
 A stack is accepted as its table label (the species code, or "portal"/"infra"),
 its checkout name (emobase-deploy-lsta) or its Compose project name.
@@ -141,14 +142,12 @@ func (a *App) collectCredentialRows(ctx context.Context, ws *workspace.Workspace
 
 	// The Keycloak admin login is a bootstrap credential too, and it is the one
 	// needed to reset a seed password.
-	if ws.Infra != nil {
-		if user, _ := ws.Infra.Get("KEYCLOAK_ADMIN"); strings.TrimSpace(user) != "" {
-			rows = append(rows, credentialRow{
-				Stack:  "infra",
-				User:   user,
-				Source: ws.Infra.Dir,
-			})
-		}
+	if _, user, _, dir := portalKeycloak(ws); user != "" {
+		rows = append(rows, credentialRow{
+			Stack:  "portal",
+			User:   user,
+			Source: dir,
+		})
 	}
 
 	for _, st := range stacks {
@@ -293,19 +292,18 @@ func renderCredentialAdmin(r credentialRow, verifyErr string) string {
 }
 
 func (a *App) credentialInfraDetail(cmd *cobra.Command, ws *workspace.Workspace) error {
-	if ws.Infra == nil {
-		return fmt.Errorf("no emobase-infra checkout found")
+	if ws.Portal == nil {
+		return fmt.Errorf("no emobase-portal-deploy checkout found; the Keycloak admin credential lives there")
 	}
-	user, _ := ws.Infra.Get("KEYCLOAK_ADMIN")
-	pass, _ := ws.Infra.Get("KEYCLOAK_ADMIN_PASSWORD")
+	_, user, pass, dir := portalKeycloak(ws)
 	if strings.TrimSpace(user) == "" || pass == "" {
-		return fmt.Errorf("%s/.env has no KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD", ws.Infra.Dir)
+		return fmt.Errorf("%s/.env has no KEYCLOAK_ADMIN / KEYCLOAK_ADMIN_PASSWORD", dir)
 	}
 
 	row := credentialRow{
-		Stack:    "infra",
+		Stack:    "portal",
 		User:     user,
-		Source:   ws.Infra.Dir,
+		Source:   dir,
 		Password: pass,
 	}
 	if a.JSON {
@@ -334,14 +332,22 @@ func isInfraRef(ws *workspace.Workspace, ref string) bool {
 		strings.EqualFold(ref, ws.Infra.Dir)
 }
 
-// keycloakAdminURL points at the admin console of the shared Keycloak, or an
-// empty string when the infra checkout does not record it.
-func keycloakAdminURL(ws *workspace.Workspace) string {
-	if ws.Infra == nil {
-		return ""
+// portalKeycloak returns the portal-owned Keycloak credentials. Keycloak moved
+// from emobase-infra to emobase-portal-deploy.
+func portalKeycloak(ws *workspace.Workspace) (base, admin, pass, dir string) {
+	if ws.Portal == nil {
+		return "", "", "", ""
 	}
-	base, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	base = strings.TrimSpace(base)
+	base, _ = ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
+	admin, _ = ws.Portal.Get("KEYCLOAK_ADMIN")
+	pass, _ = ws.Portal.Get("KEYCLOAK_ADMIN_PASSWORD")
+	return strings.TrimSpace(base), strings.TrimSpace(admin), pass, ws.Portal.Dir
+}
+
+// keycloakAdminURL points at the admin console of the portal Keycloak, or an
+// empty string when the portal checkout does not record it.
+func keycloakAdminURL(ws *workspace.Workspace) string {
+	base, _, _, _ := portalKeycloak(ws)
 	if base == "" {
 		return ""
 	}
@@ -374,16 +380,11 @@ func matchesStackRef(st *workspace.Stack, ref string) bool {
 	return strings.EqualFold(string(st.Role), ref)
 }
 
-// realmAdmin builds an admin client from the infra checkout, which owns the
+// realmAdmin builds an admin client from the portal checkout, which owns the
 // Keycloak admin credentials.
 func realmAdmin(ws *workspace.Workspace) *keycloak.Client {
-	if ws.Infra == nil {
-		return nil
-	}
-	base, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	admin, _ := ws.Infra.Get("KEYCLOAK_ADMIN")
-	pass, _ := ws.Infra.Get("KEYCLOAK_ADMIN_PASSWORD")
-	if strings.TrimSpace(base) == "" || admin == "" || pass == "" {
+	base, admin, pass, _ := portalKeycloak(ws)
+	if base == "" || admin == "" || pass == "" {
 		return nil
 	}
 	return keycloak.New(base, admin, pass)
@@ -395,7 +396,7 @@ func realmAdmin(ws *workspace.Workspace) *keycloak.Client {
 // answer is per realm and user, not per checkout.
 func credentialStatus(ctx context.Context, kc *keycloak.Client, realm, user string) (credentialState, string) {
 	if kc == nil {
-		return stateUnknown, "emobase-infra/.env has no Keycloak admin credentials"
+		return stateUnknown, "emobase-portal-deploy/.env has no Keycloak admin credentials"
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

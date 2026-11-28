@@ -55,10 +55,6 @@ func credentialFixture(t *testing.T) string {
 
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
-		"KEYCLOAK_PUBLIC_URL=" + srv.URL,
-		"KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak",
-		"KEYCLOAK_ADMIN=admin",
-		"KEYCLOAK_ADMIN_PASSWORD=admin-pass",
 		"EMOBASE_INFRA_NETWORK=emobase-infra",
 		"MYSQL_ROOT_PASSWORD=root-secret",
 		"",
@@ -66,6 +62,10 @@ func credentialFixture(t *testing.T) string {
 	mkCLIStack(t, root, "emobase-portal-deploy", testPortalCompose, strings.Join([]string{
 		"PUBLIC_SERVER=http://localhost:9080",
 		"EMOBASE_GENOMICS_MYSQL__DATABASE=emobase_genomics",
+		"KEYCLOAK_PUBLIC_URL=" + srv.URL,
+		"KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak",
+		"KEYCLOAK_ADMIN=admin",
+		"KEYCLOAK_ADMIN_PASSWORD=admin-pass",
 		"KEYCLOAK_REALM=ibb",
 		"KEYCLOAK_CLIENT_ID=ibb-client",
 		"KEYCLOAK_CLIENT_SECRET=super-secret",
@@ -78,7 +78,6 @@ func credentialFixture(t *testing.T) string {
 		"PUBLIC_SERVER=http://localhost:9090",
 		"EMOBASE_ES_INDEX_PREFIX=tcas",
 		"KEYCLOAK_REALM=ibb",
-		"KEYCLOAK_REALM_MODE=joined",
 		"KEYCLOAK_CLIENT_ID=ibb-client",
 		"KEYCLOAK_CLIENT_SECRET=super-secret",
 		"COCO_USERNAME=coco",
@@ -90,7 +89,6 @@ func credentialFixture(t *testing.T) string {
 		"PUBLIC_SERVER=http://localhost:9091",
 		"EMOBASE_ES_INDEX_PREFIX=dmel",
 		"KEYCLOAK_REALM=ibb_dmel",
-		"KEYCLOAK_REALM_MODE=dedicated",
 		"KEYCLOAK_CLIENT_ID=ibb-dmel-client",
 		"KEYCLOAK_CLIENT_SECRET=dmel-secret",
 		"COCO_USERNAME=coco",
@@ -111,7 +109,7 @@ func TestCredentialListHidesPasswords(t *testing.T) {
 			t.Errorf("fleet view leaked %q:\n%s", secret, out)
 		}
 	}
-	for _, want := range []string{"coco", "ibb", "ibb_dmel", "Tcas", "infra", "admin", "state"} {
+	for _, want := range []string{"coco", "ibb", "ibb_dmel", "Tcas", "portal", "admin", "state"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output is missing %q:\n%s", want, out)
 		}
@@ -246,6 +244,11 @@ func TestCredentialInfraReportsRejectedAdminLogin(t *testing.T) {
 
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
+		"EMOBASE_INFRA_NETWORK=emobase-infra",
+		"MYSQL_ROOT_PASSWORD=root-secret",
+		"",
+	}, "\n"))
+	mkCLIStack(t, root, "emobase-portal-deploy", testPortalCompose, strings.Join([]string{
 		"KEYCLOAK_PUBLIC_URL=" + srv.URL,
 		"KEYCLOAK_ADMIN=admin",
 		"KEYCLOAK_ADMIN_PASSWORD=stale-admin-pass",

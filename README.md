@@ -10,8 +10,8 @@ checkout's `.env`:
 
 | Checkout | Role | Owns |
 | --- | --- | --- |
-| `infra` | shared infrastructure | MySQL root password, Keycloak admin credentials, Keycloak public/internal URLs, the shared Docker network |
-| `portal` | multi-species portal | `PUBLIC_SERVER`, portal realm/client/seed credentials, genomics database settings |
+| `infra` | shared infrastructure | MySQL root password, Elasticsearch settings, the shared Docker network |
+| `portal` | multi-species portal | `PUBLIC_SERVER`, Keycloak admin credentials and public/internal URLs, portal realm/client/seed credentials, genomics database settings |
 | `<Species>` | one species site | joined or new realm credentials, Directus database, HTTP port, Compose project name |
 
 `emobase create` uses these names and prompts for the directory, so a deployment

@@ -113,7 +113,7 @@ func (a *App) collectStatus(ctx context.Context, ws *workspace.Workspace) status
 		} else {
 			sr.Databases = nil
 		}
-		if base, ok := ws.Infra.Get("KEYCLOAK_PUBLIC_URL"); ok && base != "" {
+		if base, _, _, _ := portalKeycloak(ws); base != "" {
 			kc := keycloak.New(base, "", "")
 			realms := map[string]bool{}
 			if ws.Portal != nil {

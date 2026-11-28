@@ -18,7 +18,7 @@ func TestKeycloakProbeHint(t *testing.T) {
 			name:  "tls",
 			out:   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
 			cause: "does not trust the TLS certificate",
-			hint:  "KEYCLOAK_INTERNAL_URL=http://host.docker.internal:8181/keycloak",
+			hint:  "KEYCLOAK_INTERNAL_URL=http://host.docker.internal:9080/keycloak",
 		},
 		{
 			name:  "dns",
@@ -30,7 +30,7 @@ func TestKeycloakProbeHint(t *testing.T) {
 			name:  "refused",
 			out:   "ECONNREFUSED",
 			cause: "cannot connect",
-			hint:  "emobase-infra is running",
+			hint:  "portal Keycloak is running",
 		},
 		{
 			name:  "status",
@@ -41,7 +41,7 @@ func TestKeycloakProbeHint(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cause, hint := keycloakProbeHint(tc.out, "ibeetlebase.emobase.test", "ibb")
+			cause, hint := keycloakProbeHint(tc.out, "ibeetlebase.emobase.test", "ibb", "http://host.docker.internal:9080/keycloak")
 			if !strings.Contains(cause, tc.cause) {
 				t.Fatalf("cause = %q, want %q", cause, tc.cause)
 			}

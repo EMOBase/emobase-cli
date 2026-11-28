@@ -38,7 +38,7 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		byService[c.Service] = c
 	}
 	up := map[string]bool{}
-	for _, svc := range []string{"mysql", "keycloak", "elasticsearch"} {
+	for _, svc := range []string{"mysql", "elasticsearch"} {
 		c, ok := byService[svc]
 		if !ok {
 			rep.Add(checks.Advisory("live.service", "infra", checks.Error,
@@ -63,7 +63,9 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		}
 		up[svc] = running
 	}
-	mysqlUp, keycloakUp := up["mysql"], up["keycloak"]
+	mysqlUp := up["mysql"]
+	// Keycloak runs in the portal stack, not in emobase-infra.
+	keycloakUp := keycloakContainerRunning(ctx, ws, rep)
 
 	runner := &scaffold.Runner{Stdout: io.Discard, Stderr: io.Discard}
 
@@ -117,38 +119,47 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 		}
 	}
 
-	if keycloakUp {
-		base, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-		adminUser, _ := ws.Infra.Get("KEYCLOAK_ADMIN")
-		adminPass, _ := ws.Infra.Get("KEYCLOAK_ADMIN_PASSWORD")
-		if base != "" {
-			kc := keycloak.New(base, adminUser, adminPass)
-			var order []string
-			groups := map[string][]*workspace.Stack{}
-			add := func(st *workspace.Stack) {
-				if st == nil || st.MissingEnv {
-					return
-				}
-				realm, _, _, _, _, ok := stackRealm(st)
-				if !ok {
-					return
-				}
-				if _, exists := groups[realm]; !exists {
-					order = append(order, realm)
-				}
-				groups[realm] = append(groups[realm], st)
+	// Keycloak and its admin credentials belong to the portal. A species-only
+	// workspace has no portal checkout, so it can still verify that its realm
+	// is reachable through the public URL, but not inspect the client.
+	var kcBase, adminUser, adminPass string
+	if ws.Portal != nil {
+		kcBase, _ = ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
+		adminUser, _ = ws.Portal.Get("KEYCLOAK_ADMIN")
+		adminPass, _ = ws.Portal.Get("KEYCLOAK_ADMIN_PASSWORD")
+	}
+	if keycloakUp || ws.Portal == nil {
+		var order []string
+		groups := map[string][]*workspace.Stack{}
+		add := func(st *workspace.Stack) {
+			if st == nil || st.MissingEnv {
+				return
 			}
-			add(ws.Portal)
-			for _, sp := range ws.Species {
-				add(sp)
+			realm, _, _, _, _, ok := stackRealm(st)
+			if !ok {
+				return
 			}
+			if _, exists := groups[realm]; !exists {
+				order = append(order, realm)
+			}
+			groups[realm] = append(groups[realm], st)
+		}
+		add(ws.Portal)
+		for _, sp := range ws.Species {
+			add(sp)
+		}
+		if kcBase == "" && len(order) > 0 {
+			kcBase, _ = groups[order[0]][0].Get("KEYCLOAK_PUBLIC_URL")
+		}
+		if kcBase != "" {
+			kc := keycloak.New(kcBase, adminUser, adminPass)
 			for _, realm := range order {
 				members := groups[realm]
 				scope := checks.ScopeOf(members[0])
 				if ok, err := kc.RealmReachable(ctx, realm); err != nil || !ok {
 					rep.Add(checks.Advisory("live.realm", scope, checks.Error,
 						fmt.Sprintf("realm %q is not reachable at KEYCLOAK_PUBLIC_URL", realm),
-						"check KEYCLOAK_PUBLIC_URL (it must be the browser URL) and emobase-infra logs"))
+						"check KEYCLOAK_PUBLIC_URL (it must be the browser URL) and the portal Keycloak logs"))
 					continue
 				}
 				if adminUser == "" || adminPass == "" {
@@ -210,6 +221,46 @@ func addLiveChecks(ctx context.Context, ws *workspace.Workspace, rep *checks.Rep
 	}
 }
 
+// keycloakContainerRunning checks the portal Keycloak. Keycloak is part of
+// emobase-portal-deploy; infra no longer has a keycloak service.
+func keycloakContainerRunning(ctx context.Context, ws *workspace.Workspace, rep *checks.Report) bool {
+	if ws.Portal == nil {
+		return false
+	}
+	containers, err := live.ComposePS(ctx, ws.Portal.Dir)
+	if err != nil {
+		rep.Add(checks.Advisory("live.portal", "portal", checks.Error,
+			"could not query emobase-portal-deploy containers", err.Error()))
+		return false
+	}
+	for _, c := range containers {
+		if c.Service != "keycloak" {
+			continue
+		}
+		state := c.State
+		if state == "" {
+			state = c.Status
+		}
+		switch {
+		case !isRunning(state, c.Status):
+			rep.Add(checks.Advisory("live.portal", "portal", checks.Error,
+				fmt.Sprintf("keycloak container is not running (%s)", state),
+				"`emobase up --only portal`"))
+			return false
+		case c.Health == "unhealthy":
+			rep.Add(checks.Advisory("live.portal", "portal", checks.Error,
+				"keycloak container is unhealthy",
+				fmt.Sprintf("`cd %s && docker compose logs --tail=100 keycloak`", ws.Portal.Dir)))
+			return false
+		}
+		return true
+	}
+	rep.Add(checks.Advisory("live.portal", "portal", checks.Error,
+		"keycloak container has not been created",
+		"`emobase up --only portal`"))
+	return false
+}
+
 // probeKeycloakFromApp verifies the server-side issuer from inside the app
 // container. The host can trust a certificate or resolve a name that the
 // container cannot, so a fetch from the host does not prove that the callback
@@ -246,12 +297,16 @@ func probeKeycloakFromApp(ctx context.Context, sp *workspace.Stack, rep *checks.
 		return
 	}
 	realm, _ := sp.Get("KEYCLOAK_REALM")
+	fallback := "http://host.docker.internal:9080/keycloak"
+	if portal, ok := sp.Get("PORTAL_INTERNAL_URL"); ok && strings.TrimSpace(portal) != "" {
+		fallback = strings.TrimRight(strings.TrimSpace(portal), "/") + "/keycloak"
+	}
 	var reason, hint string
 	if strings.TrimSpace(out) == "" {
 		reason = fmt.Sprintf("the app container did not answer %s within 12s", issuerHost(issuer))
-		hint = "check that emobase-infra is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
+		hint = "check that the portal Keycloak is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
 	} else {
-		reason, hint = keycloakProbeHint(out, issuerHost(issuer), strings.TrimSpace(realm))
+		reason, hint = keycloakProbeHint(out, issuerHost(issuer), strings.TrimSpace(realm), fallback)
 	}
 	rep.Add(checks.Advisory("live.keycloak_internal", checks.ScopeOf(sp), checks.Error, reason, hint))
 }
@@ -283,9 +338,8 @@ func issuerHost(issuer string) string {
 
 // keycloakProbeHint turns the node/undici error from the in-container fetch
 // into a cause and an actionable hint.
-func keycloakProbeHint(out, host, realm string) (string, string) {
+func keycloakProbeHint(out, host, realm, fallback string) (string, string) {
 	low := strings.ToLower(out)
-	fallback := "http://host.docker.internal:8181/keycloak"
 	switch {
 	case strings.Contains(low, "unable_to_verify_leaf_signature"),
 		strings.Contains(low, "self_signed_cert_in_chain"),
@@ -299,7 +353,7 @@ func keycloakProbeHint(out, host, realm string) (string, string) {
 			fmt.Sprintf("the name may exist only in the host's /etc/hosts; set KEYCLOAK_INTERNAL_URL=%s", fallback)
 	case strings.Contains(low, "econnrefused"), strings.Contains(low, "etimedout"), strings.Contains(low, "ehostunreach"):
 		return fmt.Sprintf("the app container cannot connect to %s", host),
-			"check that emobase-infra is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
+			"check that the portal Keycloak is running and KEYCLOAK_INTERNAL_URL points at a reachable host"
 	case strings.Contains(low, "status "):
 		return "the Keycloak issuer answered " + probeStatusLine(out),
 			fmt.Sprintf("KEYCLOAK_INTERNAL_URL must be a base URL and the realm /realms/%s must exist", realm)
