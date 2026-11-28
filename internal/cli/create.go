@@ -118,7 +118,7 @@ func (a *App) createInfraCmd() *cobra.Command {
 	f := cmd.Flags()
 	f.StringVar(&o.dir, "dir", "", "checkout directory (default: <workspace>/infra; asked when interactive)")
 	f.StringVar(&o.network, "infra-network", "", "shared Docker network (default emobase-infra)")
-	f.BoolVar(&o.local, "local", false, "accepted for consistency; infra has no public URLs")
+	f.BoolVar(&o.local, "local", false, "local trial: use localhost URLs")
 	f.BoolVar(&o.force, "force", false, "overwrite an existing .env (rotates secrets)")
 	f.BoolVar(&o.clone, "clone", false, "clone the repository when the directory is missing")
 	f.BoolVar(&o.dryRun, "dry-run", false, "print commands without running them")
