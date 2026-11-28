@@ -313,14 +313,14 @@ func (a *App) newSpeciesAddCmd(use string) *cobra.Command {
 	f.StringVar(&o.httpPort, "http-port", "", "host port (default 9090)")
 	f.StringVar(&o.portalServer, "portal-server", "", "portal URL when there is no local portal checkout")
 	f.StringVar(&o.portalInternalURL, "portal-internal-url", "", "override the container-facing portal URL (derived automatically for a local portal)")
-	f.StringVar(&o.realm, "keycloak-realm", "", "existing realm, created on the portal host")
+	f.StringVar(&o.realm, "keycloak-realm", "", "realm (same-host default: emobase-<species>; remote: existing realm)")
 	f.StringVar(&o.realm, "realm", "", "alias for --keycloak-realm")
-	f.StringVar(&o.clientID, "keycloak-client-id", "", "existing client ID from the portal")
-	f.StringVar(&o.clientSecret, "keycloak-client-secret", "", "existing client secret from the portal")
+	f.StringVar(&o.clientID, "keycloak-client-id", "", "client ID (same-host default: <realm>-client; remote: existing)")
+	f.StringVar(&o.clientSecret, "keycloak-client-secret", "", "client secret (generated for same-host; required for remote)")
 	f.StringVar(&o.keycloakPublicURL, "keycloak-public-url", "", "portal Keycloak base URL (derived from the portal when omitted)")
 	f.StringVar(&o.keycloakInternalURL, "keycloak-internal-url", "", "optional container-facing Keycloak base URL")
 	f.StringVar(&o.cocoUser, "coco-username", "", "seed user name (default coco)")
-	f.StringVar(&o.cocoPass, "coco-password", "", "seed user password from the portal")
+	f.StringVar(&o.cocoPass, "coco-password", "", "seed password (generated for same-host; from portal for remote)")
 	f.StringVar(&o.directusDB, "directus-db", "", "Directus database (default directus_<species>)")
 	f.StringVar(&o.containerPrefix, "container-prefix", "", "Compose project/container prefix (default: species slug)")
 	f.StringVar(&o.esPrefix, "es-index-prefix", "", "Elasticsearch index prefix (default: species slug; \"genomics\" is reserved for the portal)")
@@ -384,6 +384,30 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts, refs []string) e
 	if o.portalDir != "" {
 		if o.portalDir, err = filepath.Abs(o.portalDir); err != nil {
 			return err
+		}
+	}
+	if o.portalDir != "" && o.realm == "" {
+		// Same-host species: generate a dedicated realm and credentials now.
+		// The realm itself is created by bootstrap once the portal Keycloak is
+		// running, or immediately below if it is already up.
+		o.realm = "emobase-" + slug
+		if o.clientID == "" {
+			o.clientID = o.realm + "-client"
+		}
+		if o.clientSecret == "" {
+			o.clientSecret, err = randomToken(32)
+			if err != nil {
+				return err
+			}
+		}
+		if o.cocoUser == "" {
+			o.cocoUser = "coco"
+		}
+		if o.cocoPass == "" {
+			o.cocoPass, err = randomToken(24)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	r := &scaffold.Runner{DryRun: o.dryRun, Stdin: cmd.InOrStdin(), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr()}
@@ -451,6 +475,20 @@ func (a *App) runSpeciesAdd(cmd *cobra.Command, o *speciesOpts, refs []string) e
 	if err := updateStackLedger(ws, sp, nil); err != nil {
 		return err
 	}
+	if ws.Portal != nil {
+		if keycloakRunning(cmd.Context(), ws) {
+			fmt.Fprintln(cmd.OutOrStdout(), title("Keycloak realm"))
+			if err := ensureStackRealm(cmd.Context(), r, ws, sp); err != nil {
+				return err
+			}
+			if err := markRealmCreated(ws, sp, true); err != nil {
+				return err
+			}
+			fmt.Fprintln(cmd.OutOrStdout())
+		} else {
+			fmt.Fprintln(cmd.OutOrStdout(), muted("Keycloak is not running; the realm will be created by bootstrap."))
+		}
+	}
 	infraUp := infraReady(cmd.Context(), ws)
 	if !o.apply && !a.Yes && canPrompt(cmd.InOrStdin()) && infraUp {
 		o.apply, err = promptConfirm(cmd, "Set up the species now (database, Directus, start)?", false)
@@ -504,6 +542,21 @@ func (a *App) setupSpecies(cmd *cobra.Command, ws *workspace.Workspace, sp *work
 	if !r.DryRun {
 		if err := markDatabaseCreated(ws, sp, true); err != nil {
 			return err
+		}
+	}
+	if ws.Portal != nil {
+		if !r.DryRun && !keycloakRunning(cmd.Context(), ws) {
+			fmt.Fprintln(out, muted("Keycloak is not running; the realm will be created by bootstrap."))
+		} else {
+			fmt.Fprintln(out, title("Keycloak realm"))
+			if err := ensureStackRealm(cmd.Context(), r, ws, sp); err != nil {
+				return err
+			}
+			if !r.DryRun {
+				if err := markRealmCreated(ws, sp, true); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	fmt.Fprintln(out, title("Directus"))

@@ -48,7 +48,12 @@ ledger; see [Ownership ledger](README.md#ownership-ledger).
 
 Keycloak runs in the portal stack. Realm creation is available only on the
 portal host, where the portal checkout, its Keycloak container and the admin
-credentials are present. Start the shared infrastructure and the portal first:
+credentials are present.
+
+For a same-host species this command is optional: `emobase create species`
+generates the realm credentials and `emobase bootstrap` creates the realm when
+it starts the portal. Use this command when the species is on another server or
+when you want to create the realm explicitly. Start infra and the portal first:
 
 ```bash
 emobase up --only infra
@@ -97,7 +102,9 @@ realm by default.
 ## What `create` writes
 
 `create` only scaffolds `.env`; it never starts containers. Review these values
-after scaffolding.
+after scaffolding. For a same-host species, `create species` also generates a
+dedicated realm/client/secret and `coco` password; `bootstrap` creates them in
+Keycloak.
 
 **`infra/.env`** — `ELASTICSEARCH_HOST_PORT`, `ELASTICSEARCH_JAVA_OPTS`,
 `ELASTICSEARCH_MEM_LIMIT`, the shared Docker network name and the generated
@@ -117,7 +124,7 @@ credentials configure the portal-owned Keycloak; `EMOBASE_PORTAL_WEB_IMAGE` and
 | `PORTAL_SERVER` | Public portal URL used by browser links | the portal's `PUBLIC_SERVER` |
 | `PORTAL_INTERNAL_URL` | Portal URL inside containers | `http://host.docker.internal:<portal port>` for a local portal; unset for a remote portal |
 | `KEYCLOAK_PUBLIC_URL` | The portal Keycloak URL | from `portal/.env` |
-| `KEYCLOAK_REALM` | Existing realm created on the portal | e.g. `emobase-portal`, `emobase-tcas` |
+| `KEYCLOAK_REALM` | Realm; generated for a same-host species, existing for a remote one | e.g. `emobase-portal`, `emobase-tcas` |
 | `DIRECTUS_DB_DATABASE` | This species' database | e.g. `directus_tcas` |
 | `EMOBASE_ES_INDEX_PREFIX` | This species' slice of the shared Elasticsearch | e.g. `tcas`; must be unique and not `genomics` |
 | `COMPOSE_FILE` | Compose files for this stack | `compose.yml`; Tcas adds `:compose.tcas.yml` |

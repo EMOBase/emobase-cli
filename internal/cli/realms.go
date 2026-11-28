@@ -106,12 +106,11 @@ func ensureStackRealm(ctx context.Context, r *scaffold.Runner, ws *workspace.Wor
 	if st == nil || st.Role == workspace.RoleInfra {
 		return nil
 	}
-	if st.Role != workspace.RolePortal {
-		// Species realms are created on the portal host; a species stack only
-		// consumes the credentials it was given.
-		return nil
-	}
 	if ws.Portal == nil || ws.Portal.MissingEnv {
+		if st.Role == workspace.RoleSpecies {
+			// Remote species consume a realm created elsewhere.
+			return nil
+		}
 		return fmt.Errorf("no portal checkout found; create the realm on the portal host")
 	}
 	realm, clientID, clientSecret, cocoUser, cocoPass, ok := stackRealm(st)
@@ -123,7 +122,7 @@ func ensureStackRealm(ctx context.Context, r *scaffold.Runner, ws *workspace.Wor
 		return fmt.Errorf("%s has no PUBLIC_SERVER", st.Name)
 	}
 	if !r.DryRun && !keycloakRunning(ctx, ws) {
-		return fmt.Errorf("Keycloak is not running; start infra first with: emobase up --only infra")
+		return fmt.Errorf("the portal Keycloak is not running; start it with: emobase up --only portal")
 	}
 	return r.EnsureRealm(ws.Portal.Dir, realm, origin, clientID, clientSecret, cocoUser, cocoPass)
 }

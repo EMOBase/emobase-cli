@@ -57,3 +57,27 @@ func TestEnsureStackRealmDryRun(t *testing.T) {
 		}
 	}
 }
+
+func TestEnsureStackRealmForSpeciesDryRun(t *testing.T) {
+	portal := realmStack(workspace.RolePortal, "/srv/emobase/emobase-portal-deploy",
+		"emobase-portal", "emobase-portal-client", "portal-secret", "https://portal.example.org")
+	species := realmStack(workspace.RoleSpecies, "/srv/emobase/emobase-deploy-tcas",
+		"emobase-tcas", "emobase-tcas-client", "species-secret", "https://tcas.example.org")
+	ws := &workspace.Workspace{Portal: portal, Species: []*workspace.Stack{species}}
+	var out bytes.Buffer
+	r := &scaffold.Runner{DryRun: true, Stdout: &out, Stderr: &out}
+
+	if err := ensureStackRealm(t.Context(), r, ws, species); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"./scripts/create-realm.sh",
+		"--realm emobase-tcas",
+		"--origin https://tcas.example.org",
+		"--client-id emobase-tcas-client",
+	} {
+		if !bytes.Contains(out.Bytes(), []byte(want)) {
+			t.Errorf("out missing %q:\n%s", want, out.String())
+		}
+	}
+}
