@@ -46,58 +46,21 @@ ledger; see [Ownership ledger](README.md#ownership-ledger).
 
 ## Keycloak realms
 
-Keycloak runs in the portal stack. Realm creation is available only on the
-portal host, where the portal checkout, its Keycloak container and the admin
-credentials are present.
-
-For a same-host species this command is optional: `emobase create species`
-generates the realm credentials and `emobase bootstrap` creates the realm when
-it starts the portal. Use this command when the species is on another server or
-when you want to create the realm explicitly. Start infra and the portal first:
-
-```bash
-emobase up --only infra
-emobase up --only portal
-```
+Keycloak runs in the portal stack. Use `realm create` when the species is on
+another server, or when you want the realm explicitly; a same-host
+`create species` generates the credentials and `bootstrap` creates the realm.
 
 ```bash
 emobase keycloak realm create --species Tcas
-```
-
-Asks only for the realm, species origin and client ID; the client secret and
-seed password are generated. With `--species`, the defaults are:
-
-```text
-Realm:          emobase-tcas
-Species origin: PUBLIC_SERVER from the species .env, else
-                <scheme>://tcas.<portal host>
-Client ID:      emobase-tcas-client
-```
-
-Use `--print-env` to print only the block for the species `.env`:
-
-```dotenv
-KEYCLOAK_PUBLIC_URL=https://<portal>/keycloak
-KEYCLOAK_REALM=emobase-tcas
-KEYCLOAK_CLIENT_ID=emobase-tcas-client
-KEYCLOAK_CLIENT_SECRET=...
-COCO_USERNAME=coco
-COCO_PASSWORD=...
-```
-
-Add another site origin to an existing realm without rotating its secret:
-
-```bash
 emobase keycloak realm add-origin \
   --realm emobase-portal \
   --client-id emobase-portal-client \
   --origin https://tcas.example.org
 ```
 
-`create` refuses an existing realm unless `--rotate-secret` is passed.
-`add-origin` requires the realm to exist and keeps the client secret and seed
-password unchanged. Neither command generates a client secret for an existing
-realm by default.
+Realm ownership, the same-host and remote flows, defaults, `--print-env`, and
+`--rotate-secret` are covered in
+[REALMS.md](https://github.com/EMOBase/emobase-docs/blob/main/REALMS.md).
 
 ## What `create` writes
 
