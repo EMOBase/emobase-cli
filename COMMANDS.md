@@ -44,24 +44,6 @@ are global.
 Commands that create or remove resources track them in the workspace ownership
 ledger; see [Ownership ledger](README.md#ownership-ledger).
 
-## Keycloak realms
-
-Keycloak runs in the portal stack. Use `realm create` when the species is on
-another server, or when you want the realm explicitly; a same-host
-`create species` generates the credentials and `bootstrap` creates the realm.
-
-```bash
-emobase keycloak realm create --species Tcas
-emobase keycloak realm add-origin \
-  --realm emobase-portal \
-  --client-id emobase-portal-client \
-  --origin https://tcas.example.org
-```
-
-Realm ownership, the same-host and remote flows, defaults, `--print-env`, and
-`--rotate-secret` are covered in
-[REALMS.md](https://github.com/EMOBase/emobase-docs/blob/main/REALMS.md).
-
 ## What `create` writes
 
 `create` only scaffolds `.env`; it never starts containers. Review these values
@@ -137,6 +119,24 @@ Findings advertise what it takes to resolve them:
 
 `.env` files are edited in place, preserving comments and ordering. A
 `<file>.env.bak` copy of the previous contents is kept before each save.
+
+## Keycloak realms
+
+Keycloak runs in the portal stack. Use `realm create` when the species is on
+another server, or when you want the realm explicitly; a same-host
+`create species` generates the credentials and `bootstrap` creates the realm.
+
+```bash
+emobase keycloak realm create --species Tcas
+emobase keycloak realm add-origin \
+  --realm emobase-portal \
+  --client-id emobase-portal-client \
+  --origin https://tcas.example.org
+```
+
+Realm ownership, the same-host and remote flows, defaults, `--print-env`, and
+`--rotate-secret` are covered in
+[REALMS.md](https://github.com/EMOBase/emobase-docs/blob/main/REALMS.md).
 
 ## Changing public URLs
 
