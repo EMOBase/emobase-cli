@@ -124,6 +124,7 @@ credentials configure the portal-owned Keycloak; `EMOBASE_PORTAL_WEB_IMAGE` and
 | `PORTAL_SERVER` | Public portal URL used by browser links | the portal's `PUBLIC_SERVER` |
 | `PORTAL_INTERNAL_URL` | Portal URL inside containers | `http://host.docker.internal:<portal port>` for a local portal; unset for a remote portal |
 | `KEYCLOAK_PUBLIC_URL` | The portal Keycloak URL | from `portal/.env` |
+| `KEYCLOAK_INTERNAL_URL` | Keycloak URL inside containers | `http://host.docker.internal:<portal port>/keycloak` for a local portal; unset for a remote portal |
 | `KEYCLOAK_REALM` | Realm; generated for a same-host species, existing for a remote one | e.g. `emobase-portal`, `emobase-tcas` |
 | `DIRECTUS_DB_DATABASE` | This species' database | e.g. `directus_tcas` |
 | `EMOBASE_ES_INDEX_PREFIX` | This species' slice of the shared Elasticsearch | e.g. `tcas`; must be unique and not `genomics` |
@@ -145,7 +146,8 @@ This section lists the rules, not the values.
   names are unique across stacks.
 - URLs have no trailing slash.
 - `KEYCLOAK_INTERNAL_URL`, when set, is a base URL without `/realms/`; a
-  loopback public Keycloak needs a container-reachable value.
+  loopback public Keycloak needs a container-reachable value. Directus exits
+  when OIDC discovery fails, so a same-host species needs the host-gateway URL.
 - Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
 - Every checkout using the same realm uses the same client ID and secret.
 - `COMPOSE_PROJECT_NAME` is set and unique.
