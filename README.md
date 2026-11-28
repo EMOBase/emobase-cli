@@ -82,7 +82,8 @@ the parent directory is used automatically.
 Without `--local`, URL questions default to the host's primary IPv4 address
 (the address used for the default route). If the server is behind NAT, enter
 its public IP or domain instead. `--local` uses `localhost` for a same-machine
-trial.
+trial. `create infra` accepts the flag for consistency, but infra has no URL
+questions, so it has no effect there.
 
 Every other question can also be answered by a flag, which is useful for
 automation. A value passed as a flag skips only that question. `--yes` accepts

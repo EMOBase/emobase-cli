@@ -128,6 +128,29 @@ func TestCreateInfraYesClonesMissingCheckout(t *testing.T) {
 	}
 }
 
+func TestCreateInfraLocalIsAcceptedButNotForwarded(t *testing.T) {
+	root := t.TempDir()
+	mkCLIStack(t, root, "infra", testInfraCompose, "")
+
+	cmd := New()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetArgs([]string{"--workspace", root, "--yes", "create", "infra", "--local", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "./init.sh") {
+		t.Fatalf("expected the init command in dry-run output:\n%s", got)
+	}
+	if strings.Contains(got, "--local") {
+		t.Fatalf("--local must not be forwarded to infra/init.sh:\n%s", got)
+	}
+}
+
 func TestCreateInfraNonInteractiveRequiresClone(t *testing.T) {
 	root := t.TempDir()
 	cmd := New()
