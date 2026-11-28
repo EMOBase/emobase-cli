@@ -244,11 +244,16 @@ reports a single warning instead of failing.
 ## How `emobase` decides what to run
 
 No registry file is needed. `emobase` classifies each immediate child of the
-workspace from its `compose.yml`:
+workspace by looking for one marker service in its `compose.yml`:
 
-- `mysql` service → infrastructure
-- `genomicsservice` service → portal (the portal also owns Keycloak now)
-- `directus` service → species
+| Role | Marker service | Other services |
+| --- | --- | --- |
+| infrastructure | `mysql` | `elasticsearch` |
+| portal | `genomicsservice` | `keycloak`, `nginx`, ... |
+| species | `directus` | the species application services |
+
+The marker service decides the role. The other services are present but are not
+used for classification, so Keycloak alone does not make a checkout a portal.
 
 Exactly one infrastructure checkout and one portal checkout are allowed;
 species checkouts are unlimited. A checkout can be named by its directory name,
