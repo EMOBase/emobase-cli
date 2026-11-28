@@ -109,7 +109,7 @@ func TestCredentialListHidesPasswords(t *testing.T) {
 			t.Errorf("fleet view leaked %q:\n%s", secret, out)
 		}
 	}
-	for _, want := range []string{"coco", "ibb", "ibb_dmel", "Tcas", "portal", "admin", "state"} {
+	for _, want := range []string{"coco", "ibb", "ibb_dmel", "Tcas", "portal", "keycloak", "admin", "state"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output is missing %q:\n%s", want, out)
 		}
@@ -222,17 +222,21 @@ func TestCredentialUnknownStackFails(t *testing.T) {
 	}
 }
 
-func TestCredentialInfraPrintsAdminLogin(t *testing.T) {
+func TestCredentialKeycloakPrintsAdminLogin(t *testing.T) {
 	root := credentialFixture(t)
-	out, errb, code := runCLI(t, "--workspace", root, "--no-color", "credential", "show", "infra")
-	if code != 0 {
-		t.Fatalf("exit = %d, stderr = %s", code, errb)
-	}
-	if !strings.Contains(out, "admin") || !strings.Contains(out, "admin-pass") {
-		t.Errorf("expected the Keycloak admin login:\n%s", out)
-	}
-	if strings.Contains(out, "did not accept") {
-		t.Errorf("working admin credentials must not warn:\n%s", out)
+	for _, ref := range []string{"keycloak", "infra"} {
+		t.Run(ref, func(t *testing.T) {
+			out, errb, code := runCLI(t, "--workspace", root, "--no-color", "credential", "show", ref)
+			if code != 0 {
+				t.Fatalf("exit = %d, stderr = %s", code, errb)
+			}
+			if !strings.Contains(out, "admin") || !strings.Contains(out, "admin-pass") {
+				t.Errorf("expected the Keycloak admin login:\n%s", out)
+			}
+			if strings.Contains(out, "did not accept") {
+				t.Errorf("working admin credentials must not warn:\n%s", out)
+			}
+		})
 	}
 }
 

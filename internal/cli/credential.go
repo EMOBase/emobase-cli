@@ -54,13 +54,13 @@ func (a *App) credentialCmd() *cobra.Command {
 
 func (a *App) credentialShowCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "show [stack]",
+		Use:   "show [stack|keycloak]",
 		Short: "List seed users; name a stack to reveal its password",
 		Long: `Without an argument, show lists every stack's seed user and whether the
 password is still unused. The password itself is only printed when a stack is
-named, so the fleet view stays safe to paste into a ticket. 'show infra' prints
-the Keycloak admin credential; it lives in emobase-portal-deploy/.env because
-the portal owns Keycloak.
+named, so the fleet view stays safe to paste into a ticket. 'show keycloak'
+prints the Keycloak admin credential from emobase-portal-deploy/.env. 'show
+infra' is kept as an alias because the admin credential used to live there.
 
 A stack is accepted as its table label (the species code, or "portal"/"infra"),
 its checkout name (emobase-deploy-lsta) or its Compose project name.
@@ -79,8 +79,13 @@ reset it in the Keycloak admin console if you need a working login.`,
 			if err != nil {
 				return err
 			}
+			if len(args) == 1 && isKeycloakRef(args[0]) {
+				return a.credentialKeycloakDetail(cmd, ws)
+			}
 			if len(args) == 1 && isInfraRef(ws, args[0]) {
-				return a.credentialInfraDetail(cmd, ws)
+				// Compatibility alias: the Keycloak admin used to live in the
+				// infra checkout.
+				return a.credentialKeycloakDetail(cmd, ws)
 			}
 			if len(realmStacks(ws)) == 0 {
 				return fmt.Errorf("no portal or species checkout has realm credentials")
@@ -144,7 +149,7 @@ func (a *App) collectCredentialRows(ctx context.Context, ws *workspace.Workspace
 	// needed to reset a seed password.
 	if _, user, _, dir := portalKeycloak(ws); user != "" {
 		rows = append(rows, credentialRow{
-			Stack:  "portal",
+			Stack:  "keycloak",
 			User:   user,
 			Source: dir,
 		})
@@ -274,7 +279,7 @@ func renderCredentialDetail(r credentialRow, adminURL string) string {
 		fmt.Fprintln(&b, "Keycloak has no such user in this realm, so the stored value cannot work.")
 	default:
 		fmt.Fprintln(&b, "The seed password could not be verified (Keycloak unreachable or admin credentials missing).")
-		fmt.Fprintln(&b, muted("Check the admin login with `emobase credential show infra`."))
+		fmt.Fprintln(&b, muted("Check the admin login with `emobase credential show keycloak`."))
 	}
 	return b.String()
 }
@@ -291,7 +296,7 @@ func renderCredentialAdmin(r credentialRow, verifyErr string) string {
 	return b.String()
 }
 
-func (a *App) credentialInfraDetail(cmd *cobra.Command, ws *workspace.Workspace) error {
+func (a *App) credentialKeycloakDetail(cmd *cobra.Command, ws *workspace.Workspace) error {
 	if ws.Portal == nil {
 		return fmt.Errorf("no emobase-portal-deploy checkout found; the Keycloak admin credential lives there")
 	}
@@ -301,7 +306,7 @@ func (a *App) credentialInfraDetail(cmd *cobra.Command, ws *workspace.Workspace)
 	}
 
 	row := credentialRow{
-		Stack:    "portal",
+		Stack:    "keycloak",
 		User:     user,
 		Source:   dir,
 		Password: pass,
@@ -330,6 +335,11 @@ func isInfraRef(ws *workspace.Workspace, ref string) bool {
 	return strings.EqualFold(ref, "infra") ||
 		strings.EqualFold(ref, ws.Infra.Name) ||
 		strings.EqualFold(ref, ws.Infra.Dir)
+}
+
+// isKeycloakRef accepts the Keycloak admin credential by name.
+func isKeycloakRef(ref string) bool {
+	return strings.EqualFold(strings.TrimSpace(ref), "keycloak")
 }
 
 // portalKeycloak returns the portal-owned Keycloak credentials. Keycloak moved

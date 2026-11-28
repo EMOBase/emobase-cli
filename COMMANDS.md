@@ -10,7 +10,7 @@ the first run, see [README.md](README.md).
 | `emobase` | Workspace dashboard: stacks, shared URLs, findings |
 | `emobase doctor [--fix] [--yes] [--live] [--json]` | Static (and optionally runtime) cross-repo checks; `--fix` applies safe repairs |
 | `emobase status` | Live containers, Docker network, MySQL databases, realms and HTTP status |
-| `emobase credential show [stack]` | Seed users per realm plus the Keycloak admin; passwords only when a stack is named |
+| `emobase credential show [stack\|keycloak]` | Seed users per realm plus the Keycloak admin (`keycloak`); passwords only when a stack is named |
 | `emobase domain [plan\|apply\|status]` | Review and update public URLs, the Keycloak issuer and realm origins |
 | `emobase image [list\|set\|reset]` | View or change the portal and species container images |
 | `emobase species list` | List discovered species checkouts |
