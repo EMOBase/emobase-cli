@@ -29,6 +29,15 @@ func (r *Runner) Exec(dir, name string, args ...string) error {
 
 // exec runs a command in dir with extra environment variables.
 func (r *Runner) exec(dir string, extraEnv []string, name string, args ...string) error {
+	env := os.Environ()
+	if len(extraEnv) > 0 {
+		env = mergeEnv(env, extraEnv)
+	}
+	return r.run(dir, env, name, args...)
+}
+
+// run executes a command with the given environment.
+func (r *Runner) run(dir string, env []string, name string, args ...string) error {
 	parts := make([]string, 0, len(args)+1)
 	parts = append(parts, quoteArg(name))
 	redact := false
@@ -57,9 +66,7 @@ func (r *Runner) exec(dir string, extraEnv []string, name string, args ...string
 	cmd.Stdin = r.Stdin
 	cmd.Stdout = r.Stdout
 	cmd.Stderr = r.Stderr
-	if len(extraEnv) > 0 {
-		cmd.Env = mergeEnv(os.Environ(), extraEnv)
-	}
+	cmd.Env = env
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("%s: %w", line, err)
 	}
@@ -103,9 +110,54 @@ func (r *Runner) Script(dir, script string, args ...string) error {
 	return r.Exec(dir, script, args...)
 }
 
-// Compose runs docker compose in dir.
+// Compose runs docker compose in dir. Variables defined in dir/.env are
+// removed from the inherited environment first: Compose gives an exported
+// shell variable precedence over .env, which would initialize MySQL with a
+// different root password than the deploy stacks read from the file.
 func (r *Runner) Compose(dir string, args ...string) error {
-	return r.Exec(dir, "docker", append([]string{"compose"}, args...)...)
+	env := withoutDotEnv(os.Environ(), filepath.Join(dir, ".env"))
+	return r.run(dir, env, "docker", append([]string{"compose"}, args...)...)
+}
+
+// withoutDotEnv drops entries whose key is defined in the dotenv file.
+func withoutDotEnv(base []string, path string) []string {
+	keys := dotEnvKeys(path)
+	if len(keys) == 0 {
+		return base
+	}
+	out := make([]string, 0, len(base))
+	for _, entry := range base {
+		key, _, _ := strings.Cut(entry, "=")
+		if keys[key] {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+// dotEnvKeys returns the variable names defined in a dotenv file.
+func dotEnvKeys(path string) map[string]bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	keys := make(map[string]bool)
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "export ")
+		key, _, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		if key = strings.TrimSpace(key); key != "" {
+			keys[key] = true
+		}
+	}
+	return keys
 }
 
 // Init runs ./init.sh with the given flags. EMOBASE_CLI=1 tells the deploy

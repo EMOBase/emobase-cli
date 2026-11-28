@@ -127,3 +127,25 @@ func TestDryRunRedactsSecrets(t *testing.T) {
 		t.Fatalf("redaction marker missing: %q", line)
 	}
 }
+
+func TestWithoutDotEnvDropsFileVariables(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	content := "# comment\nFOO=file\nexport BAR=file\n\nKEEP=file\n"
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	base := []string{"FOO=shell", "BAR=shell", "BAZ=shell"}
+	got := withoutDotEnv(base, path)
+	want := []string{"BAZ=shell"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("withoutDotEnv = %q, want %q", got, want)
+	}
+}
+
+func TestWithoutDotEnvWithoutFileKeepsEnvironment(t *testing.T) {
+	base := []string{"FOO=shell", "BAZ=shell"}
+	got := withoutDotEnv(base, filepath.Join(t.TempDir(), "missing"))
+	if strings.Join(got, ",") != strings.Join(base, ",") {
+		t.Fatalf("withoutDotEnv = %q, want %q", got, base)
+	}
+}
