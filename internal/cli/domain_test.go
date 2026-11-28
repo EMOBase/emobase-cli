@@ -34,14 +34,10 @@ func domainTestStack(role workspace.Role, name, dir string, env map[string]strin
 }
 
 func domainFixture() *workspace.Workspace {
-	infra := domainTestStack(workspace.RoleInfra, "emobase-infra", "/srv/emobase/emobase-infra", map[string]string{
-		"KEYCLOAK_PUBLIC_URL": "http://localhost:8181/keycloak",
-		"KEYCLOAK_HOST_PORT":  "8181",
-		"KEYCLOAK_REALM":      "ibb",
-	})
+	infra := domainTestStack(workspace.RoleInfra, "emobase-infra", "/srv/emobase/emobase-infra", map[string]string{})
 	portal := domainTestStack(workspace.RolePortal, "emobase-portal-deploy", "/srv/emobase/emobase-portal-deploy", map[string]string{
 		"PUBLIC_SERVER":       "http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL": "http://localhost:8181/keycloak",
+		"KEYCLOAK_PUBLIC_URL": "http://localhost:9080/keycloak",
 		"KEYCLOAK_REALM":      "ibb",
 	})
 	species := domainTestStack(workspace.RoleSpecies, "emobase-deploy-tcas", "/srv/emobase/emobase-deploy-tcas", map[string]string{
@@ -49,17 +45,17 @@ func domainFixture() *workspace.Workspace {
 		"PUBLIC_SERVER":         "http://localhost:9090",
 		"PORTAL_SERVER":         "http://localhost:9080",
 		"PORTAL_INTERNAL_URL":   "http://host.docker.internal:9080",
-		"KEYCLOAK_PUBLIC_URL":   "http://localhost:8181/keycloak",
+		"KEYCLOAK_PUBLIC_URL":   "http://localhost:9080/keycloak",
 		"KEYCLOAK_REALM":        "ibb",
-		"KEYCLOAK_INTERNAL_URL": "http://host.docker.internal:8181/keycloak",
+		"KEYCLOAK_INTERNAL_URL": "http://host.docker.internal:9080/keycloak",
 	})
 	return &workspace.Workspace{Root: "/srv/emobase", Infra: infra, Portal: portal, Species: []*workspace.Stack{species}}
 }
 
 func domainValuesFor(ws *workspace.Workspace) *domainValues {
 	vals := &domainValues{species: map[*workspace.Stack]string{}}
-	vals.auth, _ = ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
 	if ws.Portal != nil {
+		vals.auth, _ = ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
 		vals.portal, _ = ws.Portal.Get("PUBLIC_SERVER")
 	}
 	for _, sp := range ws.Species {
@@ -72,6 +68,7 @@ func TestDomainPlanAuthChangeUpdatesEveryStack(t *testing.T) {
 	ws := domainFixture()
 	vals := domainValuesFor(ws)
 	vals.auth = "https://auth.example.org/keycloak"
+	vals.authExplicit = true
 
 	plan, err := buildDomainPlan(ws, vals)
 	if err != nil {
@@ -81,7 +78,6 @@ func TestDomainPlanAuthChangeUpdatesEveryStack(t *testing.T) {
 		t.Fatal("expected auth change")
 	}
 	for _, want := range []string{
-		"infra/KEYCLOAK_PUBLIC_URL",
 		"portal/KEYCLOAK_PUBLIC_URL",
 		"species:emobase-deploy-tcas/KEYCLOAK_PUBLIC_URL",
 		"species:emobase-deploy-tcas/KEYCLOAK_INTERNAL_URL",
@@ -93,10 +89,10 @@ func TestDomainPlanAuthChangeUpdatesEveryStack(t *testing.T) {
 	if len(plan.Origins) != 0 {
 		t.Fatalf("auth-only change should not add origins: %#v", plan.Origins)
 	}
-	if len(plan.Restarts) != 3 {
+	if len(plan.Restarts) != 2 {
 		t.Fatalf("restarts = %d", len(plan.Restarts))
 	}
-	if got := findDomainChange(plan, "species:emobase-deploy-tcas/KEYCLOAK_INTERNAL_URL").New; got != "https://auth.example.org/keycloak" {
+	if got := findDomainChange(plan, "species:emobase-deploy-tcas/KEYCLOAK_INTERNAL_URL").New; got != "" {
 		t.Fatalf("internal URL = %q", got)
 	}
 }
@@ -110,14 +106,14 @@ func TestDomainPlanPortalChangeUpdatesSpeciesPortalServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.AuthChanged {
-		t.Fatal("did not expect auth change")
+	if !plan.AuthChanged {
+		t.Fatal("expected the derived Keycloak URL to follow the portal URL")
 	}
 	if !hasDomainChange(plan, "portal/PUBLIC_SERVER") || !hasDomainChange(plan, "species:emobase-deploy-tcas/PORTAL_SERVER") {
 		t.Fatalf("changes = %#v", plan.Changes)
 	}
-	if hasDomainChange(plan, "infra/KEYCLOAK_PUBLIC_URL") {
-		t.Fatal("portal change must not touch the Keycloak URL")
+	if got := findDomainChange(plan, "portal/KEYCLOAK_PUBLIC_URL").New; got != "https://portal.example.org/keycloak" {
+		t.Fatalf("portal Keycloak URL = %q", got)
 	}
 	if len(plan.Origins) != 1 || plan.Origins[0].Origin != "https://portal.example.org" {
 		t.Fatalf("origins = %#v", plan.Origins)
@@ -152,6 +148,7 @@ func TestDomainPlanSpeciesOnlySkipsPortal(t *testing.T) {
 	ws.Species[0].Env.Set("PORTAL_SERVER", "https://portal.example.org")
 	vals := domainValuesFor(ws)
 	vals.auth = "https://auth.example.org/keycloak"
+	vals.authExplicit = true
 	vals.species[ws.Species[0]] = "https://tcas.example.org"
 
 	plan, err := buildDomainPlan(ws, vals)
@@ -167,8 +164,6 @@ func TestDomainPlanSpeciesOnlySkipsPortal(t *testing.T) {
 		}
 	}
 	for _, want := range []string{
-		"infra/KEYCLOAK_PUBLIC_URL",
-		"species:emobase-deploy-tcas/KEYCLOAK_PUBLIC_URL",
 		"species:emobase-deploy-tcas/PUBLIC_SERVER",
 	} {
 		if !hasDomainChange(plan, want) {
@@ -252,11 +247,11 @@ func TestDomainURLValidation(t *testing.T) {
 	}
 }
 
-func TestDerivedInternalKeycloakURL(t *testing.T) {
-	if got := derivedInternalKeycloakURL("http://localhost:8181/keycloak", "8181"); got != "http://host.docker.internal:8181/keycloak" {
+func TestInternalKeycloakBase(t *testing.T) {
+	if got := internalKeycloakBase("http://localhost:9080/keycloak", "9080"); got != "http://host.docker.internal:9080/keycloak" {
 		t.Fatalf("loopback URL = %q", got)
 	}
-	if got := derivedInternalKeycloakURL("https://auth.example.org/keycloak", "8181"); got != "https://auth.example.org/keycloak" {
+	if got := internalKeycloakBase("https://auth.example.org/keycloak", "9080"); got != "" {
 		t.Fatalf("public URL = %q", got)
 	}
 }
@@ -264,14 +259,12 @@ func TestDerivedInternalKeycloakURL(t *testing.T) {
 func TestDomainPlanCommand(t *testing.T) {
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
-		"KEYCLOAK_REALM=ibb",
-		"KEYCLOAK_HOST_PORT=8181",
+		"EMOBASE_INFRA_NETWORK=emobase-infra",
 		"",
 	}, "\n"))
 	mkCLIStack(t, root, "emobase-portal-deploy", testPortalCompose, strings.Join([]string{
 		"PUBLIC_SERVER=http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:9080/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))
@@ -279,7 +272,7 @@ func TestDomainPlanCommand(t *testing.T) {
 		"MAIN_SPECIES=Tcas",
 		"PUBLIC_SERVER=http://localhost:9090",
 		"PORTAL_SERVER=http://localhost:9080",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:9080/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))
@@ -305,16 +298,14 @@ func TestDomainPlanCommand(t *testing.T) {
 func TestDomainPlanCommandSpeciesOnly(t *testing.T) {
 	root := t.TempDir()
 	mkCLIStack(t, root, "emobase-infra", testInfraCompose, strings.Join([]string{
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
-		"KEYCLOAK_REALM=ibb",
-		"KEYCLOAK_HOST_PORT=8181",
+		"EMOBASE_INFRA_NETWORK=emobase-infra",
 		"",
 	}, "\n"))
 	mkCLIStack(t, root, "emobase-deploy-tcas", testSpeciesCompose, strings.Join([]string{
 		"MAIN_SPECIES=Tcas",
 		"PUBLIC_SERVER=http://localhost:9090",
 		"PORTAL_SERVER=https://portal.example.org",
-		"KEYCLOAK_PUBLIC_URL=http://localhost:8181/keycloak",
+		"KEYCLOAK_PUBLIC_URL=http://localhost:9080/keycloak",
 		"KEYCLOAK_REALM=ibb",
 		"",
 	}, "\n"))
@@ -333,7 +324,7 @@ func TestDomainPlanCommandSpeciesOnly(t *testing.T) {
 		t.Fatalf("%v\n%s", err, errb.String())
 	}
 	got := out.String()
-	for _, want := range []string{"species:emobase-deploy-tcas", "https://tcas.example.org", "https://auth.example.org/keycloak"} {
+	for _, want := range []string{"species:emobase-deploy-tcas", "https://tcas.example.org"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("output missing %q:\n%s", want, got)
 		}

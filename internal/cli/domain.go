@@ -25,9 +25,10 @@ type domainOpts struct {
 }
 
 type domainValues struct {
-	auth    string
-	portal  string
-	species map[*workspace.Stack]string
+	auth         string
+	authExplicit bool
+	portal       string
+	species      map[*workspace.Stack]string
 }
 
 type domainChange struct {
@@ -107,9 +108,9 @@ The command does not configure DNS, TLS or the reverse proxy. Set those up
 first, then point the URLs here. If the Keycloak URL changes, existing login
 sessions become invalid.
 
-When the workspace has no emobase-portal-deploy checkout, the portal is
-external: domain only manages this server's Keycloak and species URLs and
-leaves PORTAL_SERVER in the species .env untouched.`,
+Keycloak is owned by the portal. The Keycloak URL follows the portal URL
+(the portal URL plus /keycloak) unless --auth overrides an external Keycloak. When the
+workspace has no portal checkout, domain only manages species URLs.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.runDomainInteractive(cmd, o)
@@ -117,7 +118,7 @@ leaves PORTAL_SERVER in the species .env untouched.`,
 	}
 
 	f := cmd.PersistentFlags()
-	f.StringVar(&o.auth, "auth", "", "Keycloak public URL, e.g. https://auth.example.org/keycloak")
+	f.StringVar(&o.auth, "auth", "", "external Keycloak URL override (default: <portal>/keycloak)")
 	f.StringVar(&o.portal, "portal", "", "local portal public URL (needs an emobase-portal-deploy checkout)")
 	f.StringArrayVar(&o.species, "species", nil, "species URL as REF=URL (repeatable)")
 
@@ -221,9 +222,6 @@ func (a *App) runDomainInteractive(cmd *cobra.Command, o *domainOpts) error {
 		if !canPrompt(cmd.InOrStdin()) {
 			return fmt.Errorf("stdin is not a terminal; use emobase domain plan or emobase domain apply")
 		}
-		if vals.auth, err = promptEdit(cmd, "Keycloak public URL", vals.auth); err != nil {
-			return err
-		}
 		if ws.Portal != nil {
 			if vals.portal, err = promptEdit(cmd, "Portal public URL", vals.portal); err != nil {
 				return err
@@ -258,21 +256,19 @@ func (a *App) runDomainInteractive(cmd *cobra.Command, o *domainOpts) error {
 }
 
 func resolveDomainValues(ws *workspace.Workspace, o *domainOpts) (*domainValues, error) {
-	if ws.Infra == nil {
-		return nil, fmt.Errorf("no emobase-infra checkout found")
-	}
 	vals := &domainValues{species: map[*workspace.Stack]string{}}
-	vals.auth, _ = ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	if o.auth != "" {
-		vals.auth = o.auth
-	}
 	if ws.Portal != nil {
 		vals.portal, _ = ws.Portal.Get("PUBLIC_SERVER")
 		if o.portal != "" {
 			vals.portal = o.portal
 		}
+		vals.auth, _ = ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
+		if o.auth != "" {
+			vals.auth = o.auth
+			vals.authExplicit = true
+		}
 	} else if o.portal != "" {
-		return nil, fmt.Errorf("--portal was given, but no emobase-portal-deploy checkout was found; this workspace only manages its own Keycloak and species URLs")
+		return nil, fmt.Errorf("--portal was given, but no emobase-portal-deploy checkout was found")
 	}
 	for _, sp := range ws.Species {
 		u, _ := sp.Get("PUBLIC_SERVER")
@@ -297,34 +293,10 @@ func resolveDomainValues(ws *workspace.Workspace, o *domainOpts) (*domainValues,
 }
 
 func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, error) {
-	if ws.Infra == nil {
-		return nil, fmt.Errorf("no emobase-infra checkout found")
-	}
 	plan := &domainPlan{}
-	hostPort, _ := ws.Infra.Get("KEYCLOAK_HOST_PORT")
-	if hostPort == "" {
-		hostPort = "8181"
-	}
-
-	authOldRaw, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	authOld, err := normalizeOptionalAuthURL(authOldRaw)
-	if err != nil {
-		return nil, fmt.Errorf("current infra KEYCLOAK_PUBLIC_URL: %w", err)
-	}
-	authNew, err := normalizeAuthURL(vals.auth)
-	if err != nil {
-		return nil, fmt.Errorf("Keycloak URL: %w", err)
-	}
-	plan.AuthChanged = authOld != authNew
-	if plan.AuthChanged {
-		plan.Changes = append(plan.Changes, domainChange{
-			Stack: ws.Infra, Scope: domainScope(ws.Infra),
-			Key: "KEYCLOAK_PUBLIC_URL", Old: authOldRaw, New: authNew,
-		})
-	}
-
 	originsSeen := map[string]string{}
-	var portalNew string
+	var portalNew, authNew string
+
 	if ws.Portal != nil {
 		portalOldRaw, _ := ws.Portal.Get("PUBLIC_SERVER")
 		portalOld, err := normalizeOptionalOrigin(portalOldRaw)
@@ -339,12 +311,32 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 			return nil, fmt.Errorf("portal and %s use the same origin %s", prev, portalNew)
 		}
 		originsSeen[portalNew] = "portal"
-
 		plan.PortalChanged = portalOld != portalNew
+
+		// Keycloak lives in the portal. Its public URL follows the portal URL
+		// unless it is an explicit external Keycloak (--auth) or an existing
+		// non-derived URL that must be preserved.
+		authOldRaw, _ := ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
+		authOld, err := normalizeOptionalAuthURL(authOldRaw)
+		if err != nil {
+			return nil, fmt.Errorf("current portal KEYCLOAK_PUBLIC_URL: %w", err)
+		}
+		authRaw := authOldRaw
+		switch {
+		case vals.authExplicit:
+			authRaw = vals.auth
+		case authOldRaw == "" || strings.TrimRight(authOldRaw, "/") == keycloakIssuerForPortal(portalOldRaw):
+			authRaw = keycloakIssuerForPortal(portalNew)
+		}
+		authNew, err = normalizeAuthURL(authRaw)
+		if err != nil {
+			return nil, fmt.Errorf("Keycloak URL: %w", err)
+		}
+		plan.AuthChanged = authOld != authNew
 		if plan.AuthChanged {
 			plan.Changes = append(plan.Changes, domainChange{
 				Stack: ws.Portal, Scope: domainScope(ws.Portal),
-				Key: "KEYCLOAK_PUBLIC_URL", Old: mustGet(ws.Portal, "KEYCLOAK_PUBLIC_URL"), New: authNew,
+				Key: "KEYCLOAK_PUBLIC_URL", Old: authOldRaw, New: authNew,
 			})
 		}
 		if plan.PortalChanged {
@@ -385,7 +377,13 @@ func buildDomainPlan(ws *workspace.Workspace, vals *domainValues) (*domainPlan, 
 				Stack: sp, Scope: domainScope(sp),
 				Key: "KEYCLOAK_PUBLIC_URL", Old: mustGet(sp, "KEYCLOAK_PUBLIC_URL"), New: authNew,
 			})
-			internalURL := derivedInternalKeycloakURL(authNew, hostPort)
+			portalPort := "9080"
+			if ws.Portal != nil {
+				if p, _ := ws.Portal.Get("HTTP_PORT"); p != "" {
+					portalPort = p
+				}
+			}
+			internalURL := internalKeycloakBase(authNew, portalPort)
 			plan.Changes = append(plan.Changes, domainChange{
 				Stack: sp, Scope: domainScope(sp),
 				Key: "KEYCLOAK_INTERNAL_URL", Old: mustGet(sp, "KEYCLOAK_INTERNAL_URL"), New: internalURL,
@@ -566,9 +564,6 @@ func domainPlanToJSON(plan *domainPlan) domainPlanJSON {
 }
 
 func (a *App) printDomainStatus(cmd *cobra.Command, ws *workspace.Workspace) error {
-	if ws.Infra == nil {
-		return fmt.Errorf("no emobase-infra checkout found")
-	}
 	if a.JSON {
 		enc := json.NewEncoder(cmd.OutOrStdout())
 		enc.SetIndent("", "  ")
@@ -577,12 +572,12 @@ func (a *App) printDomainStatus(cmd *cobra.Command, ws *workspace.Workspace) err
 	out := cmd.OutOrStdout()
 	fmt.Fprintln(out, title("Configured domains"))
 	var rows [][]string
-	auth, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	rows = append(rows, []string{"infra", "emobase-infra", auth, "-"})
 	if ws.Portal != nil {
 		url, _ := ws.Portal.Get("PUBLIC_SERVER")
 		realm, _ := ws.Portal.Get("KEYCLOAK_REALM")
+		auth, _ := ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
 		rows = append(rows, []string{"portal", ws.Portal.Name, url, realm})
+		rows = append(rows, []string{"keycloak", ws.Portal.Name, auth, realm})
 	}
 	for _, sp := range ws.Species {
 		url, _ := sp.Get("PUBLIC_SERVER")
@@ -595,8 +590,8 @@ func (a *App) printDomainStatus(cmd *cobra.Command, ws *workspace.Workspace) err
 
 func domainStatusFor(ws *workspace.Workspace) domainStatusJSON {
 	st := domainStatusJSON{}
-	st.Auth, _ = ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
 	if ws.Portal != nil {
+		st.Auth, _ = ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
 		st.Portal, _ = ws.Portal.Get("PUBLIC_SERVER")
 	}
 	for _, sp := range ws.Species {
@@ -615,8 +610,11 @@ func domainStatusFor(ws *workspace.Workspace) domainStatusJSON {
 
 func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan *domainPlan) error {
 	ctx := cmd.Context()
-	if !keycloakRunning(ctx, ws) {
-		return fmt.Errorf("Keycloak is not running; start infra first with: emobase up --only infra")
+	if len(plan.Origins) > 0 && ws.Portal == nil {
+		return fmt.Errorf("no portal checkout found; realm origins are managed on the portal host")
+	}
+	if (plan.AuthChanged || len(plan.Origins) > 0) && !keycloakRunning(ctx, ws) {
+		return portalNotRunningError(cmd, ws)
 	}
 
 	out := cmd.OutOrStdout()
@@ -655,8 +653,11 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 
 	r := &scaffold.Runner{Stdout: out, Stderr: cmd.ErrOrStderr()}
 	if plan.AuthChanged {
+		if ws.Portal == nil {
+			return fmt.Errorf("no portal checkout found; the Keycloak URL is managed on the portal host")
+		}
 		fmt.Fprintln(out, title("Restart Keycloak"))
-		if err := r.Up(ws.Infra.Dir); err != nil {
+		if err := r.Up(ws.Portal.Dir); err != nil {
 			return err
 		}
 	}
@@ -685,10 +686,10 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 		}
 	}
 
-	if plan.AuthChanged {
+	if plan.AuthChanged && ws.Portal != nil {
 		if realm := domainVerifyRealm(ws); realm != "" {
-			auth, _ := ws.Infra.Get("KEYCLOAK_PUBLIC_URL")
-			auth = domainPlanValue(plan, ws.Infra, "KEYCLOAK_PUBLIC_URL", auth)
+			auth, _ := ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
+			auth = domainPlanValue(plan, ws.Portal, "KEYCLOAK_PUBLIC_URL", auth)
 			if err := verifyIssuer(auth, realm); err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", ui.Severity(checks.Warn), err)
 			}
@@ -817,19 +818,23 @@ func normalizeOptionalOrigin(raw string) (string, error) {
 // derivedInternalKeycloakURL returns the container-facing base URL that
 // Compose turns into the issuer. A loopback public URL is not reachable from a
 // container, so it becomes the host-gateway address with the published port.
-func derivedInternalKeycloakURL(authURL, hostPort string) string {
+// keycloakIssuerForPortal is the default public issuer for a portal origin.
+func keycloakIssuerForPortal(origin string) string {
+	return strings.TrimRight(origin, "/") + "/keycloak"
+}
+
+// internalKeycloakBase is the container-facing base for a loopback Keycloak
+// URL. The portal nginx serves /keycloak on HTTP_PORT; a public URL is used
+// directly, so the base is empty.
+func internalKeycloakBase(authURL, portalPort string) string {
 	u, err := url.Parse(authURL)
-	if err == nil && isLoopbackHost(u.Hostname()) {
-		port := hostPort
-		if port == "" {
-			port = u.Port()
-		}
-		if port == "" {
-			port = "8181"
-		}
-		return fmt.Sprintf("http://host.docker.internal:%s/keycloak", port)
+	if err != nil || !isLoopbackHost(u.Hostname()) {
+		return ""
 	}
-	return strings.TrimRight(authURL, "/")
+	if portalPort == "" {
+		portalPort = "9080"
+	}
+	return fmt.Sprintf("http://host.docker.internal:%s/keycloak", portalPort)
 }
 
 func isLoopbackHost(host string) bool {

@@ -173,23 +173,25 @@ URLs, the Keycloak issuer, the dependent `.env` files, and the realm origins in
 one transaction.
 
 ```sh
-emobase domain            # prompts with the current values as defaults
+emobase domain            # prompts for the portal and species URLs
 emobase domain plan       # show the changes without applying them
 emobase domain status     # show the configured URLs
 ```
+
+The Keycloak URL is derived as `<portal>/keycloak`; it is not asked separately.
+Use `--auth` only for an external Keycloak.
 
 Non-interactive form:
 
 ```sh
 emobase domain apply --yes \
-  --auth https://auth.example.org/keycloak \
   --portal https://portal.example.org \
   --species Tcas=https://tcas.example.org
 ```
 
 Pass `--species REF=URL` once per changed species. Values not passed keep their
-current setting. Changing the Keycloak URL invalidates existing login sessions;
-changing the portal URL updates every species `PORTAL_SERVER`.
+current setting. Changing the portal URL also changes the derived Keycloak
+issuer, which invalidates existing login sessions.
 
 The command does not configure DNS, TLS, or the reverse proxy, and it refuses
 to apply changes while Keycloak is down. Old realm origins are left in place;
