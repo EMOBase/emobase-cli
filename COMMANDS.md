@@ -241,15 +241,16 @@ Exit codes: `0` success, `1` failed checks or command error.
 Runtime checks degrade gracefully: if Docker is not running, `doctor --live`
 reports a single warning instead of failing.
 
-## How it decides what to run
+## How `emobase` decides what to run
 
-No registry file is needed. Each immediate child of the workspace is classified
-from its `compose.yml`:
+No registry file is needed. `emobase` classifies each immediate child of the
+workspace from its `compose.yml`:
 
 - `mysql` service → infrastructure
-- `genomicsservice` service → portal (it also owns `keycloak` now)
+- `genomicsservice` service → portal (the portal also owns Keycloak now)
 - `directus` service → species
 
-Exactly one infra and one portal are allowed; species are unlimited. A checkout
-is identified by its directory name, `MAIN_SPECIES`, or Compose project name, so
+Exactly one infrastructure checkout and one portal checkout are allowed;
+species checkouts are unlimited. A checkout can be named by its directory name,
+its `MAIN_SPECIES` value, or its Compose project name, so
 `emobase species setup tcas`, `... Tcas` and `... emobase-deploy-tcas` all work.
