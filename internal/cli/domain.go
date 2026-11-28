@@ -665,8 +665,11 @@ func (a *App) applyDomainPlan(cmd *cobra.Command, ws *workspace.Workspace, plan 
 		if !ok {
 			return fmt.Errorf("%s has no realm client credentials", o.Stack.Name)
 		}
+		if ws.Portal == nil {
+			return fmt.Errorf("no portal checkout found; realm origins are managed on the portal host")
+		}
 		if err := r.EnsureRealm(
-			ws.Infra.Dir, realm, o.Origin,
+			ws.Portal.Dir, realm, o.Origin,
 			clientID, clientSecret, cocoUser, cocoPass,
 		); err != nil {
 			return err

@@ -25,17 +25,12 @@ type SharedKey struct {
 // SharedToInfra are copied from emobase-infra into the portal and species.
 var SharedToInfra = []SharedKey{
 	{Key: "MYSQL_ROOT_PASSWORD", Authority: AuthorityInfra, Secret: true},
-	{Key: "KEYCLOAK_PUBLIC_URL", Authority: AuthorityInfra},
 	{Key: "EMOBASE_INFRA_NETWORK", Authority: AuthorityInfra},
 }
 
 // RequiredInfra is the minimum set for a working shared infrastructure stack.
 // Shared keys are checked separately, so they are excluded here.
-var RequiredInfra = []string{
-	"KEYCLOAK_HOST_PORT",
-	"KEYCLOAK_ADMIN",
-	"KEYCLOAK_ADMIN_PASSWORD",
-}
+var RequiredInfra = []string{}
 
 // RequiredPortal is the minimum set for the portal stack. Image variables are
 // optional overrides: Compose supplies a fallback when they are absent.
@@ -48,7 +43,7 @@ var RequiredPortal = []string{
 	"EMOBASE_GENOMICS_MYSQL__USER",
 	"EMOBASE_GENOMICS_MYSQL__DATABASE",
 	"AUTH_SECRET",
-	"KEYCLOAK_INTERNAL_URL",
+	"KEYCLOAK_PUBLIC_URL",
 	"KEYCLOAK_REALM",
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
@@ -72,8 +67,8 @@ var RequiredSpecies = []string{
 	"DIRECTUS_ADMIN_PASSWORD",
 	"COCO_USERNAME",
 	"COCO_PASSWORD",
+	"KEYCLOAK_PUBLIC_URL",
 	"KEYCLOAK_REALM",
-	"KEYCLOAK_REALM_MODE",
 	"KEYCLOAK_CLIENT_ID",
 	"KEYCLOAK_CLIENT_SECRET",
 	"SSR_OIDC_SESSION_SECRET",

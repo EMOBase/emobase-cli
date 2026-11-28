@@ -93,7 +93,6 @@ func (w *Workspace) Deploy() []*Stack {
 }
 
 var (
-	reKeycloak = regexp.MustCompile(`(?m)^\s{2}keycloak:\s*$`)
 	reMySQL    = regexp.MustCompile(`(?m)^\s{2}mysql:\s*$`)
 	rePortal   = regexp.MustCompile(`(?m)^\s{2}genomicsservice:\s*$`)
 	reDirectus = regexp.MustCompile(`(?m)^\s{2}directus:\s*$`)
@@ -149,7 +148,7 @@ func detectRole(dir string) (Role, string, bool, error) {
 		project = m[1]
 	}
 	switch {
-	case reKeycloak.MatchString(s) && reMySQL.MatchString(s):
+	case reMySQL.MatchString(s) && !rePortal.MatchString(s):
 		return RoleInfra, project, true, nil
 	case rePortal.MatchString(s):
 		return RolePortal, project, true, nil

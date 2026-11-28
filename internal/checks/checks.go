@@ -290,7 +290,6 @@ func Run(w *workspace.Workspace) *Report {
 	checkTrailingSlashes(r, w)
 	checkUniqueness(r, w)
 	checkLoopbackPorts(r, w)
-	checkInfraLoopbackPort(r, w)
 	checkInternalHosts(r, w)
 	checkPlaceholders(r, w)
 	return r
@@ -828,45 +827,6 @@ func checkLoopbackPorts(r *Report, w *workspace.Workspace) {
 				Hint:     "for a local setup these must match; behind a TLS proxy a mismatch is expected",
 			})
 		}
-	}
-}
-
-// checkInfraLoopbackPort verifies that a localhost Keycloak URL uses the
-// published host port. Behind a TLS proxy the public port legitimately differs,
-// so this only applies to loopback URLs.
-func checkInfraLoopbackPort(r *Report, w *workspace.Workspace) {
-	if w.Infra == nil || w.Infra.MissingEnv {
-		return
-	}
-	public, ok := w.Infra.Get("KEYCLOAK_PUBLIC_URL")
-	hostPort, ok2 := w.Infra.Get("KEYCLOAK_HOST_PORT")
-	if !ok || !ok2 {
-		return
-	}
-	u, err := url.Parse(public)
-	if err != nil {
-		return
-	}
-	if host := u.Hostname(); host != "localhost" && host != "127.0.0.1" {
-		return
-	}
-	port := u.Port()
-	if port == "" {
-		if u.Scheme == "http" {
-			port = "80"
-		} else {
-			port = "443"
-		}
-	}
-	if port != hostPort {
-		r.add(Finding{
-			Check:    "local.keycloak_port",
-			Scope:    "infra",
-			Severity: Warn,
-			Fix:      FixNone,
-			Message:  fmt.Sprintf("KEYCLOAK_PUBLIC_URL uses port %s but KEYCLOAK_HOST_PORT is %s", port, hostPort),
-			Hint:     "for a local setup these must match; behind a TLS proxy a mismatch is expected",
-		})
 	}
 }
 

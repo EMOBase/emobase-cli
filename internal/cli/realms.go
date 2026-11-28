@@ -32,15 +32,40 @@ func infraServiceRunning(ctx context.Context, ws *workspace.Workspace, service s
 	return false
 }
 
-// keycloakRunning reports whether the infra Keycloak container is up. Realm
-// creation uses kcadm inside that container, so it cannot run before infra.
+// keycloakRunning reports whether the portal Keycloak container is up. Realm
+// creation runs inside that container, so it cannot start before the portal.
 func keycloakRunning(ctx context.Context, ws *workspace.Workspace) bool {
-	return infraServiceRunning(ctx, ws, "keycloak")
+	if ws.Portal == nil || ws.Portal.MissingEnv {
+		return false
+	}
+	return stackServiceRunning(ctx, ws.Portal, "keycloak")
 }
 
-// infraReady reports whether both services needed by species setup are up.
+// stackServiceRunning reports whether one Compose service in a stack is up.
+func stackServiceRunning(ctx context.Context, st *workspace.Stack, service string) bool {
+	if st == nil || st.MissingEnv || !live.DockerAvailable(ctx) {
+		return false
+	}
+	containers, err := live.ComposePS(ctx, st.Dir)
+	if err != nil {
+		return false
+	}
+	for _, c := range containers {
+		if c.Service != service {
+			continue
+		}
+		state := c.State
+		if state == "" {
+			state = c.Status
+		}
+		return isRunning(state, c.Status)
+	}
+	return false
+}
+
+// infraReady reports whether the shared storage needed by species setup is up.
 func infraReady(ctx context.Context, ws *workspace.Workspace) bool {
-	return infraServiceRunning(ctx, ws, "mysql") && infraServiceRunning(ctx, ws, "keycloak")
+	return infraServiceRunning(ctx, ws, "mysql")
 }
 
 // stackRealm returns the realm and client credentials owned by a stack.
@@ -81,6 +106,14 @@ func ensureStackRealm(ctx context.Context, r *scaffold.Runner, ws *workspace.Wor
 	if st == nil || st.Role == workspace.RoleInfra {
 		return nil
 	}
+	if st.Role != workspace.RolePortal {
+		// Species realms are created on the portal host; a species stack only
+		// consumes the credentials it was given.
+		return nil
+	}
+	if ws.Portal == nil || ws.Portal.MissingEnv {
+		return fmt.Errorf("no portal checkout found; create the realm on the portal host")
+	}
 	realm, clientID, clientSecret, cocoUser, cocoPass, ok := stackRealm(st)
 	if !ok {
 		return fmt.Errorf("%s has no realm client credentials; run its init.sh first", st.Name)
@@ -92,5 +125,5 @@ func ensureStackRealm(ctx context.Context, r *scaffold.Runner, ws *workspace.Wor
 	if !r.DryRun && !keycloakRunning(ctx, ws) {
 		return fmt.Errorf("Keycloak is not running; start infra first with: emobase up --only infra")
 	}
-	return r.EnsureRealm(ws.Infra.Dir, realm, origin, clientID, clientSecret, cocoUser, cocoPass)
+	return r.EnsureRealm(ws.Portal.Dir, realm, origin, clientID, clientSecret, cocoUser, cocoPass)
 }

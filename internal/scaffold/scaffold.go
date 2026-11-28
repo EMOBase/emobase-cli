@@ -122,6 +122,11 @@ func (r *Runner) Up(dir string) error {
 	return r.Compose(dir, "up", "-d", "--wait", "--remove-orphans")
 }
 
+// UpService starts one Compose service and waits for it to become healthy.
+func (r *Runner) UpService(dir, service string) error {
+	return r.Compose(dir, "up", "-d", "--wait", service)
+}
+
 // Pull pulls every Compose profile in dir.
 func (r *Runner) Pull(dir string) error {
 	return r.Compose(dir, "--profile", "*", "pull")

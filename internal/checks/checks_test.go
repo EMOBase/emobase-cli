@@ -499,18 +499,6 @@ func TestMissingEnvIsReportedOnce(t *testing.T) {
 	}
 }
 
-func TestLocalKeycloakPortMismatch(t *testing.T) {
-	root, envs := fixture(t)
-	for _, name := range []string{"emobase-infra", "emobase-portal-deploy", "emobase-deploy-tcas"} {
-		envs[name]["KEYCLOAK_PUBLIC_URL"] = "http://localhost:8082/keycloak"
-	}
-	ws := discover(t, root, envs)
-	f := find(Run(ws), "local.keycloak_port")
-	if f == nil || f.Severity != Warn {
-		t.Fatalf("finding = %#v", f)
-	}
-}
-
 func TestInternalLoopbackWarns(t *testing.T) {
 	root, envs := fixture(t)
 	envs["emobase-deploy-tcas"]["INTERNAL_DIRECTUS_URL"] = "http://localhost:8055"

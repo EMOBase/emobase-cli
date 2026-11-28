@@ -135,7 +135,7 @@ func TestPlanPruneOnlyUsesLedgerResources(t *testing.T) {
 	if len(stale) != 0 || len(actions) != 1 {
 		t.Fatalf("actions = %#v, stale = %#v", actions, stale)
 	}
-	if actions[0].db != "directus_gone" || actions[0].realm != "emobase-gone" || actions[0].es != "gone" {
+	if actions[0].db != "directus_gone" || actions[0].es != "gone" {
 		t.Fatalf("action = %#v", actions[0])
 	}
 }
@@ -174,50 +174,6 @@ func TestPlanPruneBlocksSharedESPrefix(t *testing.T) {
 	for _, act := range actions {
 		if act.es != "" {
 			t.Fatalf("shared prefix was scheduled for deletion: %#v", act)
-		}
-	}
-}
-
-func TestPlanPruneKeepsSharedRealm(t *testing.T) {
-	root := t.TempDir()
-	ledger := &state.File{
-		Version: state.Version,
-		Stacks: map[string]*state.Stack{
-			"portal": {
-				Role:   "portal",
-				Name:   "portal",
-				Dir:    "portal",
-				Status: "pending_cleanup",
-				Realm: &state.Realm{
-					Name:    "emobase-portal",
-					Mode:    "portal",
-					Owner:   "portal",
-					Created: true,
-				},
-			},
-			"species:joined": {
-				Role:   "species",
-				Name:   "joined",
-				Dir:    "joined",
-				Status: "active",
-				Realm: &state.Realm{
-					Name:  "emobase-portal",
-					Mode:  "joined",
-					Owner: "portal",
-				},
-			},
-		},
-	}
-	actions, _, blocked, err := planPrune(&workspace.Workspace{Root: root}, ledger)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(blocked) == 0 {
-		t.Fatal("expected the shared realm to be blocked")
-	}
-	for _, act := range actions {
-		if act.realm != "" {
-			t.Fatalf("shared realm was scheduled for deletion: %#v", act)
 		}
 	}
 }

@@ -62,7 +62,6 @@ IMAGE_DIR=/srv/emobase/tcas/images
 UID=1000
 GID=1000
 KEYCLOAK_REALM=emobase-portal
-KEYCLOAK_REALM_MODE=joined
 KEYCLOAK_CLIENT_ID=emobase-portal-client
 KEYCLOAK_CLIENT_SECRET=portal-secret
 MYSQL_ROOT_PASSWORD=root-secret
@@ -117,7 +116,6 @@ func conflictWorkspace() *workspace.Workspace {
 	dmel.Env.Set("MAIN_SPECIES", "Dmel")
 	dmel.Env.Set("PUBLIC_SERVER", "https://dmel.example.org")
 	dmel.Env.Set("KEYCLOAK_REALM", "emobase-dmel")
-	dmel.Env.Set("KEYCLOAK_REALM_MODE", "dedicated")
 	dmel.Env.Set("KEYCLOAK_CLIENT_ID", "emobase-dmel-client")
 	dmel.Env.Set("KEYCLOAK_CLIENT_SECRET", "dmel-secret")
 	dmel.Env.Set("DIRECTUS_DB_DATABASE", "directus_tcas")

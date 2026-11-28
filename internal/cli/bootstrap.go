@@ -19,10 +19,9 @@ func (a *App) bootstrapCmd() *cobra.Command {
 first). It then follows the deployment guide:
 
   1. infra: pull (unless --no-pull) and start, waiting for health
-  2. portal: pull, create the shared realm, JBrowse2 setup, both migrations,
-     start, smoke test
-  3. each species: create the database, create or extend the shared realm,
-     initialise Directus and start
+  2. portal: pull, start Keycloak, create the shared realm, JBrowse2 setup,
+     both migrations, start, smoke test
+  3. each species: create the database, initialise Directus and start
 
 Use --dry-run to print the exact commands without running them.`,
 		Args: cobra.NoArgs,
@@ -112,6 +111,10 @@ Use --dry-run to print the exact commands without running them.`,
 					if err := r.Migrate(ws.Portal.Dir); err != nil {
 						return err
 					}
+				}
+				fmt.Fprintln(out, title("Keycloak"))
+				if err := r.UpService(ws.Portal.Dir, "keycloak"); err != nil {
+					return err
 				}
 				if err := ensureStackRealm(cmd.Context(), r, ws, ws.Portal); err != nil {
 					return err

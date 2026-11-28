@@ -47,19 +47,11 @@ func realmOwner(ws *workspace.Workspace, realm, owner string) string {
 	if owner != "" {
 		return owner
 	}
-	if ws.Portal != nil {
+	// Keycloak lives in the portal; realms are created there and are not
+	// owned by a species stack.
+	if ws.Portal != nil && !ws.Portal.MissingEnv {
 		if r, _ := ws.Portal.Get("KEYCLOAK_REALM"); r == realm {
 			return "portal"
-		}
-	}
-	for _, sp := range ws.Species {
-		r, _ := sp.Get("KEYCLOAK_REALM")
-		if r != realm {
-			continue
-		}
-		mode, _ := sp.Get("KEYCLOAK_REALM_MODE")
-		if mode == "dedicated" {
-			return stackKey(sp)
 		}
 	}
 	return ""
@@ -100,7 +92,12 @@ func syncStackLedger(root string, ws *workspace.Workspace, st *workspace.Stack, 
 		entry.Realm = nil
 		return
 	}
-	mode, _ := st.Get("KEYCLOAK_REALM_MODE")
+	mode := "dedicated"
+	if ws.Portal != nil && !ws.Portal.MissingEnv {
+		if pr, _ := ws.Portal.Get("KEYCLOAK_REALM"); pr == realm {
+			mode = "joined"
+		}
+	}
 	if st.Role == workspace.RolePortal {
 		mode = "portal"
 	}

@@ -48,14 +48,14 @@ ledger; see [Ownership ledger](README.md#ownership-ledger).
 `create` only scaffolds `.env`; it never starts containers. Review these values
 after scaffolding.
 
-**`infra/.env`** — `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_HOST_PORT`, the fixed
-`KEYCLOAK_INTERNAL_URL=http://keycloak:8080/keycloak`, `ELASTICSEARCH_HOST_PORT`,
-`ELASTICSEARCH_JAVA_OPTS`, `ELASTICSEARCH_MEM_LIMIT`, the shared Docker network
-name, and the generated MySQL root and Keycloak admin passwords.
+**`infra/.env`** — `ELASTICSEARCH_HOST_PORT`, `ELASTICSEARCH_JAVA_OPTS`,
+`ELASTICSEARCH_MEM_LIMIT`, the shared Docker network name and the generated
+MySQL root password. Keycloak is not part of infra.
 
 **`portal/.env`** — `PUBLIC_SERVER` and `HTTP_PORT` are the browser-facing
-values; `EMOBASE_PORTAL_WEB_IMAGE` and `EMOBASE_GENOMICS_IMAGE` select the
-images.
+values; `KEYCLOAK_PUBLIC_URL`, `KEYCLOAK_INTERNAL_URL` and the Keycloak admin
+credentials configure the portal-owned Keycloak; `EMOBASE_PORTAL_WEB_IMAGE` and
+`EMOBASE_GENOMICS_IMAGE` select the images.
 
 **`<species>/.env`**
 
@@ -65,15 +65,11 @@ images.
 | `PUBLIC_HOST` | Hostname part of `PUBLIC_SERVER`; the species nginx serves only this name | e.g. `tcas.example.org` |
 | `PORTAL_SERVER` | Public portal URL used by browser links | the portal's `PUBLIC_SERVER` |
 | `PORTAL_INTERNAL_URL` | Portal URL inside containers | `http://host.docker.internal:<portal port>` for a local portal; unset for a remote portal |
-| `KEYCLOAK_PUBLIC_URL` | This server's Keycloak URL | from `infra/.env` |
-| `KEYCLOAK_REALM` | Joined realm or a dedicated species realm | e.g. `emobase-portal`, `emobase-tcas` |
+| `KEYCLOAK_PUBLIC_URL` | The portal Keycloak URL | from `portal/.env` |
+| `KEYCLOAK_REALM` | Existing realm created on the portal | e.g. `emobase-portal`, `emobase-tcas` |
 | `DIRECTUS_DB_DATABASE` | This species' database | e.g. `directus_tcas` |
 | `EMOBASE_ES_INDEX_PREFIX` | This species' slice of the shared Elasticsearch | e.g. `tcas`; must be unique and not `genomics` |
 | `COMPOSE_FILE` | Compose files for this stack | `compose.yml`; Tcas adds `:compose.tcas.yml` |
-
-The realm mode is written as `KEYCLOAK_REALM_MODE=joined|dedicated`. See the
-[realm model](https://github.com/EMOBase/emobase-docs/blob/main/REALMS.md) for
-ownership and sharing.
 
 `doctor` validates the result; see [What `doctor` checks](#what-doctor-checks).
 
@@ -84,7 +80,7 @@ This section lists the rules, not the values.
 
 - Every stack has a `.env` and every required key is non-empty.
 - Shared keys match the authoritative `emobase-infra` values
-  (`MYSQL_ROOT_PASSWORD`, `KEYCLOAK_PUBLIC_URL` and `EMOBASE_INFRA_NETWORK`).
+  (`MYSQL_ROOT_PASSWORD` and `EMOBASE_INFRA_NETWORK`).
 - Species `PORTAL_SERVER` values point at the local portal, or at a remote
   portal when the workspace has no `emobase-portal-deploy` checkout.
 - `HTTP_PORT`, `PUBLIC_SERVER`, Directus database names and Compose project
@@ -93,7 +89,6 @@ This section lists the rules, not the values.
 - `KEYCLOAK_INTERNAL_URL`, when set, is a base URL without `/realms/`; a
   loopback public Keycloak needs a container-reachable value.
 - Container-facing URLs (`*_INTERNAL_URL`, `INTERNAL_*`) do not use `localhost`.
-- A localhost Keycloak URL uses the published `KEYCLOAK_HOST_PORT`.
 - Every checkout using the same realm uses the same client ID and secret.
 - `COMPOSE_PROJECT_NAME` is set and unique.
 - A species overlay such as `compose.tcas.yml` is listed in `COMPOSE_FILE`.
@@ -226,8 +221,8 @@ reports a single warning instead of failing.
 No registry file is needed. Each immediate child of the workspace is classified
 from its `compose.yml`:
 
-- `keycloak` **and** `mysql` services → infrastructure
-- `genomicsservice` service → portal
+- `mysql` service → infrastructure
+- `genomicsservice` service → portal (it also owns `keycloak` now)
 - `directus` service → species
 
 Exactly one infra and one portal are allowed; species are unlimited. A checkout
