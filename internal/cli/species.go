@@ -175,9 +175,8 @@ A dedicated Keycloak realm is cleaned up later by 'emobase prune'.`,
 					entry.Database.Created = false
 				}
 			}
-			if realmOwned && entry.Realm != nil && entry.Realm.Mode == "dedicated" {
-				pending = true
-				fmt.Fprintln(out, muted("Dedicated realm cleanup deferred to emobase prune."))
+			if realmOwned {
+				fmt.Fprintln(out, muted("Keycloak realm cleanup is manual on the portal host."))
 			}
 			if esCreated {
 				if ws.Infra == nil || !infraServiceRunning(cmd.Context(), ws, "elasticsearch") {

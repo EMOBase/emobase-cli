@@ -15,9 +15,10 @@ func (a *App) syncCmd() *cobra.Command {
 		Use:   "sync",
 		Short: "Create missing databases and realms for active stacks",
 		Long: `sync reconciles active .env files with MySQL and Keycloak. It creates
-missing portal/species databases and realm origins, and records them in the
-workspace ownership ledger. It does not pull images, run migrations or start
-containers; use bootstrap or up for that.
+missing portal/species databases and updates the portal realm origin when the
+portal Keycloak is running. It records them in the workspace ownership ledger.
+It does not pull images, run migrations or start containers; use bootstrap or up
+for that.
 
 sync never deletes resources. Use prune for state-owned cleanup.`,
 		Args: cobra.NoArgs,
@@ -49,12 +50,14 @@ sync never deletes resources. Use prune for state-owned cleanup.`,
 						}
 					}
 				}
-				if err := ensureStackRealm(cmd.Context(), r, ws, st); err != nil {
-					return err
-				}
-				if !dryRun {
-					if err := markRealmCreated(ws, st, true); err != nil {
+				if st.Role == workspace.RolePortal {
+					if err := ensureStackRealm(cmd.Context(), r, ws, st); err != nil {
 						return err
+					}
+					if !dryRun {
+						if err := markRealmCreated(ws, st, true); err != nil {
+							return err
+						}
 					}
 				}
 			}
