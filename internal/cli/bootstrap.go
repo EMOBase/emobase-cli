@@ -87,6 +87,9 @@ Use --dry-run to print the exact commands without running them.`,
 				}
 			}
 			if doPortal && ws.Portal != nil {
+				if !dryRun && !infraServiceRunning(cmd.Context(), ws, "mysql") {
+					return fmt.Errorf("the portal requires the shared infrastructure; start it first with: emobase up --only infra")
+				}
 				fmt.Fprintln(out, title("Portal"))
 				if !noPull {
 					if err := r.Pull(ws.Portal.Dir); err != nil {

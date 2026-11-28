@@ -10,6 +10,7 @@ import (
 
 	"github.com/EMOBase/emobase-cli/internal/scaffold"
 	"github.com/EMOBase/emobase-cli/internal/ui"
+	"github.com/EMOBase/emobase-cli/internal/workspace"
 	"github.com/spf13/cobra"
 )
 
@@ -84,7 +85,7 @@ func (a *App) runRealmCreate(cmd *cobra.Command, o *realmCreateOpts) error {
 	}
 	ctx := cmd.Context()
 	if !o.dryRun && !keycloakRunning(ctx, ws) {
-		return fmt.Errorf("the portal Keycloak is not running; start it with: emobase up --only portal")
+		return portalNotRunningError(cmd, ws)
 	}
 	publicURL, _ := ws.Portal.Get("KEYCLOAK_PUBLIC_URL")
 	if strings.TrimSpace(publicURL) == "" {
@@ -247,7 +248,7 @@ func (a *App) runRealmAddOrigin(cmd *cobra.Command, o *realmOriginOpts) error {
 	}
 	ctx := cmd.Context()
 	if !o.dryRun && !keycloakRunning(ctx, ws) {
-		return fmt.Errorf("the portal Keycloak is not running; start it with: emobase up --only portal")
+		return portalNotRunningError(cmd, ws)
 	}
 	if o.realm == "" {
 		value, err := promptRequired(cmd, "Realm", "emobase-tcas")
@@ -292,6 +293,16 @@ func (a *App) runRealmAddOrigin(cmd *cobra.Command, o *realmOriginOpts) error {
 	}
 	fmt.Fprintf(cmd.OutOrStdout(), "%s %s allows %s\n", ui.OK("OK"), o.clientID, origin)
 	return nil
+}
+
+// portalNotRunningError explains the actual startup order. The portal cannot
+// start before the shared network exists, so telling the operator to run
+// `up --only portal` alone is misleading.
+func portalNotRunningError(cmd *cobra.Command, ws *workspace.Workspace) error {
+	if ws.Infra == nil || ws.Infra.MissingEnv || !infraServiceRunning(cmd.Context(), ws, "mysql") {
+		return fmt.Errorf("the shared infrastructure is not running; start it first:\n  emobase up --only infra\nthen:\n  emobase up --only portal")
+	}
+	return fmt.Errorf("the portal Keycloak is not running; start it with: emobase up --only portal")
 }
 
 func validKeycloakName(value string) bool {

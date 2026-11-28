@@ -48,7 +48,12 @@ ledger; see [Ownership ledger](README.md#ownership-ledger).
 
 Keycloak runs in the portal stack. Realm creation is available only on the
 portal host, where the portal checkout, its Keycloak container and the admin
-credentials are present.
+credentials are present. Start the shared infrastructure and the portal first:
+
+```bash
+emobase up --only infra
+emobase up --only portal
+```
 
 ```bash
 emobase keycloak realm create --species Tcas

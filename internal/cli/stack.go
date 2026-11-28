@@ -64,6 +64,9 @@ func (a *App) upCmd() *cobra.Command {
 					}
 				}
 				if st.Role == workspace.RolePortal {
+					if !dryRun && !infraServiceRunning(cmd.Context(), ws, "mysql") {
+						return fmt.Errorf("the portal requires the shared infrastructure; start it first with: emobase up --only infra")
+					}
 					// Keycloak lives in the portal; start it before creating
 					// or updating the portal realm.
 					if err := r.UpService(st.Dir, "keycloak"); err != nil {
