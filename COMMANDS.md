@@ -15,11 +15,12 @@ the first run, see [README.md](README.md).
 | `emobase image [list\|set\|reset]` | View or change the portal and species container images |
 | `emobase species list` | List discovered species checkouts |
 | `emobase species add [code]` | Same as `emobase create species` |
-| `emobase species setup <ref>` | Create DB, register origin, initialise Directus, start |
+| `emobase species setup <ref>` | Create DB, initialise Directus, start |
 | `emobase species remove <ref> [--purge --yes] [--keep-dir]` | Show (or execute) teardown commands and remove the checkout |
 | `emobase create infra\|portal\|species [code]` | Ask for values, then run the repository's `init.sh`; flags and `--yes` support automation |
-| `emobase sync [--dry-run]` | Create missing databases and realm origins for active stacks |
-| `emobase prune [--yes]` | Remove state-owned databases, realms and index prefixes left by deleted stacks |
+| `emobase keycloak realm create\|add-origin` | Create a realm/client or allow another origin (portal host only) |
+| `emobase sync [--dry-run]` | Create missing databases and update the portal realm origin |
+| `emobase prune [--yes]` | Remove state-owned databases and index prefixes left by deleted stacks |
 | `emobase up [--only <role\|stack>] [--pull]` | Start in dependency order |
 | `emobase down [--only ...]` | Stop dependants first |
 | `emobase update [--only ...] [--no-git] [--skip-migrations]` | Pull, migrate, restart |
@@ -42,6 +43,51 @@ are global.
 
 Commands that create or remove resources track them in the workspace ownership
 ledger; see [Ownership ledger](README.md#ownership-ledger).
+
+## Keycloak realms
+
+Keycloak runs in the portal stack. Realm creation is available only on the
+portal host, where the portal checkout, its Keycloak container and the admin
+credentials are present.
+
+```bash
+emobase keycloak realm create --species Tcas
+```
+
+Asks only for the realm, species origin and client ID; the client secret and
+seed password are generated. With `--species`, the defaults are:
+
+```text
+Realm:          emobase-tcas
+Species origin: PUBLIC_SERVER from the species .env, else
+                <scheme>://tcas.<portal host>
+Client ID:      emobase-tcas-client
+```
+
+Use `--print-env` to print only the block for the species `.env`:
+
+```dotenv
+KEYCLOAK_PUBLIC_URL=https://<portal>/keycloak
+KEYCLOAK_REALM=emobase-tcas
+KEYCLOAK_CLIENT_ID=emobase-tcas-client
+KEYCLOAK_CLIENT_SECRET=...
+COCO_USERNAME=coco
+COCO_PASSWORD=...
+```
+
+Add another site origin to an existing realm without rotating its secret:
+
+```bash
+emobase keycloak realm add-origin \
+  --realm emobase-portal \
+  --client-id emobase-portal-client \
+  --origin https://tcas.example.org
+```
+
+`create` refuses an existing realm unless `--rotate-secret` is passed.
+`add-origin` requires the realm to exist and keeps the client secret and seed
+password unchanged. Neither command generates a client secret for an existing
+realm by default.
 
 ## What `create` writes
 
